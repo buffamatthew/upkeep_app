@@ -1,14 +1,14 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import MaintenanceItem, Vehicle
+from app.models import MaintenanceItem, Asset
 
 bp = Blueprint('maintenance_items', __name__, url_prefix='/api/maintenance-items')
 
 @bp.route('', methods=['GET'])
 def get_maintenance_items():
-    vehicle_id = request.args.get('vehicle_id', type=int)
-    if vehicle_id:
-        items = MaintenanceItem.query.filter_by(vehicle_id=vehicle_id).all()
+    asset_id = request.args.get('asset_id', type=int)
+    if asset_id:
+        items = MaintenanceItem.query.filter_by(asset_id=asset_id).all()
     else:
         items = MaintenanceItem.query.all()
     return jsonify([item.to_dict() for item in items])
@@ -22,13 +22,13 @@ def get_maintenance_item(item_id):
 def create_maintenance_item():
     data = request.get_json()
 
-    # Verify vehicle exists
-    Vehicle.query.get_or_404(data['vehicle_id'])
+    # Verify asset exists
+    Asset.query.get_or_404(data['asset_id'])
 
     item = MaintenanceItem(
-        vehicle_id=data['vehicle_id'],
+        asset_id=data['asset_id'],
         name=data['name'],
-        maintenance_type=data['maintenance_type'],
+        maintenance_type=data.get('maintenance_type', 'time'),
         frequency_value=data['frequency_value'],
         frequency_unit=data['frequency_unit'],
         notes=data.get('notes')

@@ -3,27 +3,27 @@ import pytest
 
 
 @pytest.fixture
-def sample_vehicle(client):
-    """Create a sample vehicle for testing"""
-    vehicle_data = {
-        'year': 2020,
-        'make': 'Toyota',
-        'model': 'Camry',
-        'current_mileage': 25000
+def sample_asset(client):
+    """Create a sample asset for testing"""
+    asset_data = {
+        'name': '2020 Toyota Camry',
+        'category': 'Vehicle',
+        'usage_metric': 'miles',
+        'current_usage': 25000
     }
 
-    response = client.post('/api/vehicles',
-                          data=json.dumps(vehicle_data),
+    response = client.post('/api/assets',
+                          data=json.dumps(asset_data),
                           content_type='application/json')
     return response.json
 
 
-def test_create_maintenance_item(client, sample_vehicle):
+def test_create_maintenance_item(client, sample_asset):
     """Test creating a maintenance item"""
     item_data = {
-        'vehicle_id': sample_vehicle['id'],
+        'asset_id': sample_asset['id'],
         'name': 'Oil Change',
-        'maintenance_type': 'mileage',
+        'maintenance_type': 'usage',
         'frequency_value': 5000,
         'frequency_unit': 'miles',
         'notes': 'Use synthetic oil'
@@ -36,26 +36,25 @@ def test_create_maintenance_item(client, sample_vehicle):
     assert response.status_code == 201
     data = response.json
     assert data['name'] == 'Oil Change'
-    assert data['maintenance_type'] == 'mileage'
+    assert data['maintenance_type'] == 'usage'
     assert data['frequency_value'] == 5000
-    assert data['vehicle_id'] == sample_vehicle['id']
+    assert data['asset_id'] == sample_asset['id']
 
 
-def test_get_maintenance_items_by_vehicle(client, sample_vehicle):
-    """Test getting maintenance items for a specific vehicle"""
-    # Create two maintenance items
+def test_get_maintenance_items_by_asset(client, sample_asset):
+    """Test getting maintenance items for a specific asset"""
     item1_data = {
-        'vehicle_id': sample_vehicle['id'],
+        'asset_id': sample_asset['id'],
         'name': 'Oil Change',
-        'maintenance_type': 'mileage',
+        'maintenance_type': 'usage',
         'frequency_value': 5000,
         'frequency_unit': 'miles'
     }
 
     item2_data = {
-        'vehicle_id': sample_vehicle['id'],
+        'asset_id': sample_asset['id'],
         'name': 'Tire Rotation',
-        'maintenance_type': 'mileage',
+        'maintenance_type': 'usage',
         'frequency_value': 10000,
         'frequency_unit': 'miles'
     }
@@ -68,8 +67,7 @@ def test_get_maintenance_items_by_vehicle(client, sample_vehicle):
                data=json.dumps(item2_data),
                content_type='application/json')
 
-    # Get items for this vehicle
-    response = client.get(f'/api/maintenance-items?vehicle_id={sample_vehicle["id"]}')
+    response = client.get(f'/api/maintenance-items?asset_id={sample_asset["id"]}')
     assert response.status_code == 200
     data = response.json
     assert len(data) == 2
@@ -77,13 +75,12 @@ def test_get_maintenance_items_by_vehicle(client, sample_vehicle):
     assert any(item['name'] == 'Tire Rotation' for item in data)
 
 
-def test_update_maintenance_item(client, sample_vehicle):
+def test_update_maintenance_item(client, sample_asset):
     """Test updating a maintenance item"""
-    # Create item
     item_data = {
-        'vehicle_id': sample_vehicle['id'],
+        'asset_id': sample_asset['id'],
         'name': 'Air Filter',
-        'maintenance_type': 'mileage',
+        'maintenance_type': 'usage',
         'frequency_value': 15000,
         'frequency_unit': 'miles'
     }
@@ -93,7 +90,6 @@ def test_update_maintenance_item(client, sample_vehicle):
                                   content_type='application/json')
     item_id = create_response.json['id']
 
-    # Update item
     update_data = {
         'frequency_value': 20000,
         'notes': 'Updated frequency'
@@ -109,13 +105,12 @@ def test_update_maintenance_item(client, sample_vehicle):
     assert data['notes'] == 'Updated frequency'
 
 
-def test_delete_maintenance_item(client, sample_vehicle):
+def test_delete_maintenance_item(client, sample_asset):
     """Test deleting a maintenance item"""
-    # Create item
     item_data = {
-        'vehicle_id': sample_vehicle['id'],
+        'asset_id': sample_asset['id'],
         'name': 'Brake Pads',
-        'maintenance_type': 'mileage',
+        'maintenance_type': 'usage',
         'frequency_value': 30000,
         'frequency_unit': 'miles'
     }
@@ -125,19 +120,17 @@ def test_delete_maintenance_item(client, sample_vehicle):
                                   content_type='application/json')
     item_id = create_response.json['id']
 
-    # Delete item
     response = client.delete(f'/api/maintenance-items/{item_id}')
     assert response.status_code == 204
 
-    # Verify deleted
     get_response = client.get(f'/api/maintenance-items/{item_id}')
     assert get_response.status_code == 404
 
 
-def test_create_time_based_maintenance(client, sample_vehicle):
+def test_create_time_based_maintenance(client, sample_asset):
     """Test creating a time-based maintenance item"""
     item_data = {
-        'vehicle_id': sample_vehicle['id'],
+        'asset_id': sample_asset['id'],
         'name': 'Battery Replacement',
         'maintenance_type': 'time',
         'frequency_value': 3,

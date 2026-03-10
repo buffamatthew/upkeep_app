@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Car Maintenance Tracker - Deployment Script
+# Upkeep - Deployment Script
 # This script handles deployment and updates
 
 set -e  # Exit on error
 
 echo "========================================="
-echo "Car Maintenance Tracker - Deployment"
+echo "Upkeep - Deployment"
 echo "========================================="
 echo ""
 
@@ -82,10 +82,10 @@ backup_db() {
 
     # Try to backup from volume (check both old and new locations)
     docker run --rm \
-        -v car_maintenance_tracker_db-data:/data \
+        -v upkeep_db-data:/data \
         -v "$(pwd)/$BACKUP_DIR:/backup" \
         alpine \
-        sh -c "if [ -f /data/car_maintenance.db ]; then cp /data/car_maintenance.db /backup/car_maintenance_$TIMESTAMP.db && echo '✅ Database backed up to $BACKUP_DIR/car_maintenance_$TIMESTAMP.db'; elif [ -f /data/car_maintenance.db ]; then cp /data/car_maintenance.db /backup/car_maintenance_$TIMESTAMP.db && echo '✅ Database backed up to $BACKUP_DIR/car_maintenance_$TIMESTAMP.db'; else echo '⚠️  No database found to backup'; fi"
+        sh -c "if [ -f /data/upkeep.db ]; then cp /data/upkeep.db /backup/upkeep_$TIMESTAMP.db && echo '✅ Database backed up to $BACKUP_DIR/upkeep_$TIMESTAMP.db'; elif [ -f /data/car_maintenance.db ]; then cp /data/car_maintenance.db /backup/car_maintenance_$TIMESTAMP.db && echo '✅ Database backed up to $BACKUP_DIR/car_maintenance_$TIMESTAMP.db (legacy)'; else echo '⚠️  No database found to backup'; fi"
 }
 
 # Function to migrate database from old volume structure to new
@@ -107,7 +107,7 @@ migrate_db_volume() {
             cp /olddata/car_maintenance.db /backup/migrate_temp.db
 
         # Copy to the new instance directory in the container
-        docker cp "$(pwd)/backups/migrate_temp.db" car-maintenance-backend:/app/instance/car_maintenance.db 2>/dev/null || {
+        docker cp "$(pwd)/backups/migrate_temp.db" upkeep-backend:/app/instance/upkeep.db 2>/dev/null || {
             echo "⏳ Container not ready yet, will retry after startup..."
             return 1
         }

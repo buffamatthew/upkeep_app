@@ -3,28 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import Input from '../components/Input'
 import Button from '../components/Button'
 import MaintenanceItemForm from '../components/MaintenanceItemForm'
-import { vehicleAPI, maintenanceItemAPI } from '../services/api'
+import { assetAPI, maintenanceItemAPI } from '../services/api'
 import './AddVehicle.css'
 
-function AddVehicle() {
+function AddAsset() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false)
 
-  const [vehicleData, setVehicleData] = useState({
-    year: '',
-    make: '',
-    model: '',
-    engine_type: '',
-    current_mileage: ''
+  const [assetData, setAssetData] = useState({
+    name: '',
+    description: '',
+    category: '',
+    location: '',
+    usage_metric: '',
+    current_usage: ''
   })
 
   const [maintenanceItems, setMaintenanceItems] = useState([])
 
-  const handleVehicleChange = (e) => {
+  const handleAssetChange = (e) => {
     const { name, value } = e.target
-    setVehicleData(prev => ({
+    setAssetData(prev => ({
       ...prev,
       [name]: value
     }))
@@ -32,7 +33,6 @@ function AddVehicle() {
 
   const handleAddMaintenanceItem = (item) => {
     setMaintenanceItems(prev => [...prev, item])
-    // Keep form open so user can add more items
   }
 
   const handleRemoveMaintenanceItem = (index) => {
@@ -45,42 +45,38 @@ function AddVehicle() {
     setError(null)
 
     try {
-      // Create vehicle
-      const vehiclePayload = {
-        year: parseInt(vehicleData.year),
-        make: vehicleData.make,
-        model: vehicleData.model,
-        engine_type: vehicleData.engine_type || undefined,
-        current_mileage: vehicleData.current_mileage ? parseInt(vehicleData.current_mileage) : 0
+      const assetPayload = {
+        name: assetData.name,
+        description: assetData.description || undefined,
+        category: assetData.category || undefined,
+        location: assetData.location || undefined,
+        usage_metric: assetData.usage_metric || undefined,
+        current_usage: assetData.current_usage ? parseInt(assetData.current_usage) : 0
       }
 
-      const vehicleResponse = await vehicleAPI.create(vehiclePayload)
-      const vehicleId = vehicleResponse.data.id
+      const assetResponse = await assetAPI.create(assetPayload)
+      const assetId = assetResponse.data.id
 
-      // Create maintenance items
       for (const item of maintenanceItems) {
         await maintenanceItemAPI.create({
           ...item,
-          vehicle_id: vehicleId
+          asset_id: assetId
         })
       }
 
-      // Navigate to dashboard
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create vehicle')
-      console.error('Error creating vehicle:', err)
+      setError(err.response?.data?.message || 'Failed to create asset')
+      console.error('Error creating asset:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const currentYear = new Date().getFullYear()
-
   return (
     <div className="add-vehicle-page">
       <div className="page-header">
-        <h2>Add New Vehicle</h2>
+        <h2>Add New Asset</h2>
         <Button variant="outline" onClick={() => navigate('/')}>
           Back to Dashboard
         </Button>
@@ -94,56 +90,61 @@ function AddVehicle() {
 
       <form onSubmit={handleSubmit} className="add-vehicle-form">
         <section className="form-section">
-          <h3>Vehicle Information</h3>
+          <h3>Asset Information</h3>
 
           <div className="form-grid">
             <Input
-              label="Year"
-              name="year"
-              type="number"
-              value={vehicleData.year}
-              onChange={handleVehicleChange}
-              placeholder="e.g., 2020"
-              min="1900"
-              max={currentYear + 1}
+              label="Name"
+              name="name"
+              value={assetData.name}
+              onChange={handleAssetChange}
+              placeholder="e.g., 2020 Toyota Camry, HVAC System, Bathroom"
               required
             />
 
             <Input
-              label="Make"
-              name="make"
-              value={vehicleData.make}
-              onChange={handleVehicleChange}
-              placeholder="e.g., Toyota"
-              required
+              label="Description (Optional)"
+              name="description"
+              value={assetData.description}
+              onChange={handleAssetChange}
+              placeholder="e.g., Main family car, Upstairs unit"
             />
 
             <Input
-              label="Model"
-              name="model"
-              value={vehicleData.model}
-              onChange={handleVehicleChange}
-              placeholder="e.g., Camry"
-              required
+              label="Category (Optional)"
+              name="category"
+              value={assetData.category}
+              onChange={handleAssetChange}
+              placeholder="e.g., Vehicle, Appliance, Room"
             />
 
             <Input
-              label="Engine Type"
-              name="engine_type"
-              value={vehicleData.engine_type}
-              onChange={handleVehicleChange}
-              placeholder="e.g., 2.5L 4-cylinder"
+              label="Location (Optional)"
+              name="location"
+              value={assetData.location}
+              onChange={handleAssetChange}
+              placeholder="e.g., Garage, Basement, 2nd Floor"
             />
 
             <Input
-              label="Current Mileage"
-              name="current_mileage"
-              type="number"
-              value={vehicleData.current_mileage}
-              onChange={handleVehicleChange}
-              placeholder="e.g., 25000"
-              min="0"
+              label="Usage Metric (Optional)"
+              name="usage_metric"
+              value={assetData.usage_metric}
+              onChange={handleAssetChange}
+              placeholder="e.g., miles, hours, cycles"
             />
+
+            {assetData.usage_metric && (
+              <Input
+                label={`Current ${assetData.usage_metric || 'Usage'}`}
+                name="current_usage"
+                type="number"
+                value={assetData.current_usage}
+                onChange={handleAssetChange}
+                placeholder="e.g., 25000"
+                min="0"
+              />
+            )}
           </div>
         </section>
 
@@ -151,7 +152,7 @@ function AddVehicle() {
           <div className="section-header">
             <h3>Maintenance Items</h3>
             <p className="section-description">
-              Add maintenance items to track for this vehicle
+              Add maintenance items to track for this asset
             </p>
           </div>
 
@@ -163,7 +164,7 @@ function AddVehicle() {
                     <h4>{item.name}</h4>
                     <p className="item-frequency">
                       Every {item.frequency_value} {item.frequency_unit}
-                      {' '}({item.maintenance_type === 'mileage' ? 'Mileage' : 'Time'}-based)
+                      {item.maintenance_type === 'usage' ? ' (Usage-based)' : ' (Time-based)'}
                     </p>
                     {item.notes && <p className="item-notes">{item.notes}</p>}
                   </div>
@@ -183,6 +184,7 @@ function AddVehicle() {
             <MaintenanceItemForm
               onAdd={handleAddMaintenanceItem}
               onCancel={() => setShowMaintenanceForm(false)}
+              usageMetric={assetData.usage_metric}
             />
           ) : (
             <Button
@@ -202,7 +204,7 @@ function AddVehicle() {
             disabled={loading}
             fullWidth
           >
-            {loading ? 'Creating Vehicle...' : 'Create Vehicle'}
+            {loading ? 'Creating Asset...' : 'Create Asset'}
           </Button>
         </div>
       </form>
@@ -210,4 +212,4 @@ function AddVehicle() {
   )
 }
 
-export default AddVehicle
+export default AddAsset

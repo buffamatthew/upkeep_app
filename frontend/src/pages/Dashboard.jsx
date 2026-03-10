@@ -2,30 +2,31 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import ProgressBar from '../components/ProgressBar'
-import { vehicleAPI, maintenanceItemAPI, maintenanceLogAPI } from '../services/api'
+import { assetAPI, maintenanceItemAPI, maintenanceLogAPI } from '../services/api'
+import { parseLocalDate } from '../utils/date'
 import './Dashboard.css'
 
 function Dashboard() {
   const navigate = useNavigate()
-  const [vehicles, setVehicles] = useState([])
+  const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    loadVehicles()
+    loadAssets()
   }, [])
 
-  const loadVehicles = async () => {
+  const loadAssets = async () => {
     try {
       setLoading(true)
-      const vehiclesResponse = await vehicleAPI.getAll()
-      const vehiclesData = vehiclesResponse.data
+      const assetsResponse = await assetAPI.getAll()
+      const assetsData = assetsResponse.data
 
-      // Load maintenance items and logs for each vehicle to calculate health
-      const vehiclesWithHealth = await Promise.all(
-        vehiclesData.map(async (vehicle) => {
+      // Load maintenance items and logs for each asset to calculate health
+      const assetsWithHealth = await Promise.all(
+        assetsData.map(async (asset) => {
           try {
-            const itemsResponse = await maintenanceItemAPI.getAll(vehicle.id)
+            const itemsResponse = await maintenanceItemAPI.getAll(asset.id)
             const items = itemsResponse.data
 
             // Load logs for each maintenance item
@@ -44,18 +45,18 @@ function Dashboard() {
             )
 
             // Calculate health score and get top urgent items
-            const health = calculateVehicleHealth(vehicle, itemsWithLogs)
-            const topUrgentItems = getTopUrgentItems(vehicle, itemsWithLogs, 3)
+            const health = calculateAssetHealth(asset, itemsWithLogs)
+            const topUrgentItems = getTopUrgentItems(asset, itemsWithLogs, 3)
 
             return {
-              ...vehicle,
+              ...asset,
               maintenanceItems: itemsWithLogs,
               health,
               topUrgentItems
             }
           } catch (err) {
             return {
-              ...vehicle,
+              ...asset,
               maintenanceItems: [],
               health: { score: 100, status: 'good', itemsDue: 0 },
               topUrgentItems: []
@@ -64,16 +65,16 @@ function Dashboard() {
         })
       )
 
-      setVehicles(vehiclesWithHealth)
+      setAssets(assetsWithHealth)
     } catch (err) {
-      setError('Failed to load vehicles')
-      console.error('Error loading vehicles:', err)
+      setError('Failed to load assets')
+      console.error('Error loading assets:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const calculateVehicleHealth = (vehicle, items) => {
+  const calculateAssetHealth = (asset, items) => {
     if (items.length === 0) {
       return { score: 100, status: 'good', itemsDue: 0 }
     }
@@ -83,7 +84,7 @@ function Dashboard() {
     let itemsOverdue = 0
 
     items.forEach(item => {
-      const status = getItemStatus(vehicle, item)
+      const status = getItemStatus(asset, item)
       totalPercentage += status.percentageRemaining
 
       if (status.status === 'overdue') {
@@ -113,29 +114,22 @@ function Dashboard() {
     }
   }
 
-  const getTopUrgentItems = (vehicle, items, count = 3) => {
-    // Get all items with their status
+  const getTopUrgentItems = (asset, items, count = 3) => {
     const itemsWithStatus = items.map(item => ({
       ...item,
-      statusInfo: getItemStatus(vehicle, item)
+      statusInfo: getItemStatus(asset, item)
     }))
 
-    // Sort by percentage remaining (lowest first = most urgent)
-    // Items with 'never' status (0%) should be at the end
     const sorted = itemsWithStatus.sort((a, b) => {
-      // If one has never been done, put it at the end
       if (a.statusInfo.status === 'never' && b.statusInfo.status !== 'never') return 1
       if (b.statusInfo.status === 'never' && a.statusInfo.status !== 'never') return -1
-
-      // Otherwise sort by percentage (lower = more urgent)
       return a.statusInfo.percentageRemaining - b.statusInfo.percentageRemaining
     })
 
-    // Return top N items
     return sorted.slice(0, count)
   }
 
-  const getItemStatus = (vehicle, item) => {
+  const getItemStatus = (asset, item) => {
     if (!item.logs || item.logs.length === 0) {
       return {
         status: 'never',
@@ -144,31 +138,33 @@ function Dashboard() {
     }
 
     const sortedLogs = [...item.logs].sort((a, b) =>
-      new Date(b.date_performed) - new Date(a.date_performed)
+      parseLocalDate(b.date_performed) - parseLocalDate(a.date_performed)
     )
     const lastLog = sortedLogs[0]
 
-    if (item.maintenance_type === 'mileage') {
-      const lastMileage = lastLog.mileage || 0
-      const nextMileage = lastMileage + item.frequency_value
-      const milesRemaining = nextMileage - vehicle.current_mileage
-      const percentageRemaining = Math.max(0, (milesRemaining / item.frequency_value) * 100)
+    if (item.maintenance_type === 'usage' && asset.usage_metric) {
+      const lastUsage = lastLog.usage_reading || 0
+      const nextUsage = lastUsage + item.frequency_value
+      const usageRemaining = nextUsage - asset.current_usage
+      const percentageRemaining = Math.max(0, (usageRemaining / item.frequency_value) * 100)
 
       let status = 'good'
-      if (milesRemaining <= 0) {
+      if (usageRemaining <= 0) {
         status = 'overdue'
-      } else if (milesRemaining <= item.frequency_value * 0.2) {
+      } else if (usageRemaining <= item.frequency_value * 0.2) {
         status = 'due-soon'
       }
 
       return { status, percentageRemaining }
     } else {
-      const lastDate = new Date(lastLog.date_performed)
+      const lastDate = parseLocalDate(lastLog.date_performed)
       const today = new Date()
       const daysSinceLast = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24))
 
       let frequencyInDays = item.frequency_value
-      if (item.frequency_unit === 'months') {
+      if (item.frequency_unit === 'weeks') {
+        frequencyInDays = item.frequency_value * 7
+      } else if (item.frequency_unit === 'months') {
         frequencyInDays = item.frequency_value * 30
       } else if (item.frequency_unit === 'years') {
         frequencyInDays = item.frequency_value * 365
@@ -194,10 +190,10 @@ function Dashboard() {
         <h2>Dashboard</h2>
         <div className="header-actions">
           <Button variant="outline" onClick={() => navigate('/settings')}>
-            ⚙️ Settings
+            Settings
           </Button>
-          <Button onClick={() => navigate('/add-vehicle')}>
-            + Add Vehicle
+          <Button onClick={() => navigate('/add-asset')}>
+            + Add Asset
           </Button>
         </div>
       </div>
@@ -209,51 +205,58 @@ function Dashboard() {
       )}
 
       {loading ? (
-        <div className="loading">Loading vehicles...</div>
-      ) : vehicles.length === 0 ? (
+        <div className="loading">Loading assets...</div>
+      ) : assets.length === 0 ? (
         <div className="empty-state">
-          <h3>No vehicles yet</h3>
-          <p>Get started by adding your first vehicle to track maintenance.</p>
-          <Button onClick={() => navigate('/add-vehicle')}>
-            Add Your First Vehicle
+          <h3>No assets yet</h3>
+          <p>Get started by adding your first asset to track maintenance.</p>
+          <Button onClick={() => navigate('/add-asset')}>
+            Add Your First Asset
           </Button>
         </div>
       ) : (
         <div className="vehicles-grid">
-          {vehicles.map((vehicle) => (
-            <div key={vehicle.id} className="vehicle-card">
+          {assets.map((asset) => (
+            <div key={asset.id} className="vehicle-card">
               <div className="vehicle-header">
                 <div className="vehicle-title">
-                  <h3>{vehicle.year} {vehicle.make} {vehicle.model}</h3>
-                  {vehicle.health && vehicle.health.itemsDue > 0 && (
-                    <span className={`health-badge health-${vehicle.health.status}`}>
-                      {vehicle.health.itemsOverdue > 0 ? `${vehicle.health.itemsOverdue} Overdue` : `${vehicle.health.itemsDue} Due Soon`}
+                  <h3>{asset.name}</h3>
+                  {asset.health && asset.health.itemsDue > 0 && (
+                    <span className={`health-badge health-${asset.health.status}`}>
+                      {asset.health.itemsOverdue > 0 ? `${asset.health.itemsOverdue} Overdue` : `${asset.health.itemsDue} Due Soon`}
                     </span>
                   )}
                 </div>
               </div>
 
               <div className="vehicle-details">
-                {vehicle.engine_type && (
+                {asset.category && (
                   <p className="detail-item">
-                    <span className="detail-label">Engine:</span> {vehicle.engine_type}
+                    <span className="detail-label">Category:</span> {asset.category}
                   </p>
                 )}
-                <p className="detail-item">
-                  <span className="detail-label">Mileage:</span> {vehicle.current_mileage.toLocaleString()} miles
-                </p>
-                {vehicle.maintenanceItems && (
+                {asset.location && (
                   <p className="detail-item">
-                    <span className="detail-label">Items Tracked:</span> {vehicle.maintenanceItems.length}
+                    <span className="detail-label">Location:</span> {asset.location}
+                  </p>
+                )}
+                {asset.usage_metric && (
+                  <p className="detail-item">
+                    <span className="detail-label">{asset.usage_metric}:</span> {asset.current_usage.toLocaleString()}
+                  </p>
+                )}
+                {asset.maintenanceItems && (
+                  <p className="detail-item">
+                    <span className="detail-label">Items Tracked:</span> {asset.maintenanceItems.length}
                   </p>
                 )}
               </div>
 
-              {vehicle.topUrgentItems && vehicle.topUrgentItems.length > 0 && (
+              {asset.topUrgentItems && asset.topUrgentItems.length > 0 && (
                 <div className="urgent-items">
                   <h4 className="urgent-items-title">Upcoming Maintenance</h4>
                   <div className="urgent-items-list">
-                    {vehicle.topUrgentItems.map((item) => (
+                    {asset.topUrgentItems.map((item) => (
                       <div key={item.id} className="urgent-item">
                         <div className="urgent-item-header">
                           <span className="urgent-item-name">{item.name}</span>
@@ -276,7 +279,7 @@ function Dashboard() {
               )}
 
               <div className="vehicle-actions">
-                <Button variant="outline" onClick={() => navigate(`/vehicle/${vehicle.id}`)}>
+                <Button variant="outline" onClick={() => navigate(`/asset/${asset.id}`)}>
                   View Details
                 </Button>
               </div>

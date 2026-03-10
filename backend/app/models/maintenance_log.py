@@ -7,10 +7,10 @@ class MaintenanceLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     maintenance_item_id = db.Column(db.Integer, db.ForeignKey('maintenance_items.id'), nullable=False)
     date_performed = db.Column(db.Date, nullable=False)
-    mileage = db.Column(db.Integer)
+    usage_reading = db.Column(db.Integer)  # Optional usage value at time of maintenance
     notes = db.Column(db.Text)
-    cost = db.Column(db.Numeric(10, 2))  # Store cost with 2 decimal places
-    receipt_photo = db.Column(db.String(255))  # Path to photo file (legacy, will be replaced by attachments)
+    cost = db.Column(db.Numeric(10, 2))
+    receipt_photo = db.Column(db.String(255))  # Legacy field
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship to attachments
@@ -21,10 +21,10 @@ class MaintenanceLog(db.Model):
             'id': self.id,
             'maintenance_item_id': self.maintenance_item_id,
             'date_performed': self.date_performed.isoformat() if self.date_performed else None,
-            'mileage': self.mileage,
+            'usage_reading': self.usage_reading,
             'notes': self.notes,
             'cost': float(self.cost) if self.cost else None,
-            'receipt_photo': self.receipt_photo,  # Legacy field
+            'receipt_photo': self.receipt_photo,
             'attachments': [att.to_dict() for att in self.attachments] if self.attachments else [],
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

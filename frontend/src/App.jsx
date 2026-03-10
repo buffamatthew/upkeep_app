@@ -1,9 +1,9 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
-import AddVehicle from './pages/AddVehicle'
-import EditVehicle from './pages/EditVehicle'
-import VehicleDetail from './pages/VehicleDetail'
+import AddAsset from './pages/AddAsset'
+import EditAsset from './pages/EditAsset'
+import AssetDetail from './pages/AssetDetail'
 import AddMaintenanceItem from './pages/AddMaintenanceItem'
 import EditMaintenanceItem from './pages/EditMaintenanceItem'
 import MaintenanceLog from './pages/MaintenanceLog'
@@ -18,20 +18,20 @@ function App() {
     <Router>
       <div className="App">
         <header className="App-header">
-          <h1>Car Maintenance Tracker</h1>
+          <h1>Upkeep</h1>
         </header>
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/add-vehicle" element={<AddVehicle />} />
-            <Route path="/vehicle/:id" element={<VehicleDetail />} />
-            <Route path="/vehicle/:id/edit" element={<EditVehicle />} />
-            <Route path="/vehicle/:vehicleId/add-item" element={<AddMaintenanceItem />} />
-            <Route path="/vehicle/:vehicleId/item/:itemId/edit" element={<EditMaintenanceItem />} />
-            <Route path="/vehicle/:vehicleId/item/:itemId/history" element={<MaintenanceHistory />} />
+            <Route path="/add-asset" element={<AddAsset />} />
+            <Route path="/asset/:id" element={<AssetDetail />} />
+            <Route path="/asset/:id/edit" element={<EditAsset />} />
+            <Route path="/asset/:assetId/add-item" element={<AddMaintenanceItem />} />
+            <Route path="/asset/:assetId/item/:itemId/edit" element={<EditMaintenanceItem />} />
+            <Route path="/asset/:assetId/item/:itemId/history" element={<MaintenanceHistory />} />
             <Route path="/maintenance-log" element={<MaintenanceLog />} />
             <Route path="/general-maintenance" element={<GeneralMaintenance />} />
-            <Route path="/vehicle/:vehicleId/general-maintenance" element={<GeneralMaintenanceHistory />} />
+            <Route path="/asset/:assetId/general-maintenance" element={<GeneralMaintenanceHistory />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

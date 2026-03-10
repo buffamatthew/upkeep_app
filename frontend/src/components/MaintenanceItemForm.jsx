@@ -5,12 +5,12 @@ import TextArea from './TextArea'
 import Button from './Button'
 import './MaintenanceItemForm.css'
 
-function MaintenanceItemForm({ onAdd, onCancel }) {
+function MaintenanceItemForm({ onAdd, onCancel, usageMetric }) {
   const [formData, setFormData] = useState({
     name: '',
-    maintenance_type: 'mileage',
+    maintenance_type: 'time',
     frequency_value: '',
-    frequency_unit: 'miles',
+    frequency_unit: 'months',
     notes: ''
   })
 
@@ -21,17 +21,15 @@ function MaintenanceItemForm({ onAdd, onCancel }) {
       [name]: value
     }))
 
-    // When maintenance type changes, update default frequency unit
     if (name === 'maintenance_type') {
       setFormData(prev => ({
         ...prev,
-        frequency_unit: value === 'mileage' ? 'miles' : 'months'
+        frequency_unit: value === 'usage' ? (usageMetric || 'units') : 'months'
       }))
     }
   }
 
   const handleAdd = () => {
-    // Validate required fields
     if (!formData.name || !formData.frequency_value) {
       return
     }
@@ -40,25 +38,27 @@ function MaintenanceItemForm({ onAdd, onCancel }) {
       ...formData,
       frequency_value: parseInt(formData.frequency_value)
     })
-    // Reset form
     setFormData({
       name: '',
-      maintenance_type: 'mileage',
+      maintenance_type: 'time',
       frequency_value: '',
-      frequency_unit: 'miles',
+      frequency_unit: 'months',
       notes: ''
     })
   }
 
   const maintenanceTypeOptions = [
-    { value: 'mileage', label: 'Mileage-based' },
     { value: 'time', label: 'Time-based' }
   ]
+  if (usageMetric) {
+    maintenanceTypeOptions.push({ value: 'usage', label: `Usage-based (${usageMetric})` })
+  }
 
-  const frequencyUnitOptions = formData.maintenance_type === 'mileage'
-    ? [{ value: 'miles', label: 'Miles' }]
+  const frequencyUnitOptions = formData.maintenance_type === 'usage'
+    ? [{ value: usageMetric || 'units', label: usageMetric || 'Units' }]
     : [
         { value: 'days', label: 'Days' },
+        { value: 'weeks', label: 'Weeks' },
         { value: 'months', label: 'Months' },
         { value: 'years', label: 'Years' }
       ]
@@ -71,7 +71,7 @@ function MaintenanceItemForm({ onAdd, onCancel }) {
           name="name"
           value={formData.name}
           onChange={handleChange}
-          placeholder="e.g., Oil Change, Tire Rotation"
+          placeholder="e.g., Oil Change, Filter Replacement, Deep Clean"
           required
         />
       </div>
@@ -93,7 +93,7 @@ function MaintenanceItemForm({ onAdd, onCancel }) {
             type="number"
             value={formData.frequency_value}
             onChange={handleChange}
-            placeholder="e.g., 5000"
+            placeholder="e.g., 3"
             min="1"
             required
           />
@@ -114,7 +114,7 @@ function MaintenanceItemForm({ onAdd, onCancel }) {
           name="notes"
           value={formData.notes}
           onChange={handleChange}
-          placeholder="e.g., Part numbers, oil type, filter size..."
+          placeholder="e.g., Brand to use, specific instructions..."
           rows={3}
         />
       </div>

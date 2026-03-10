@@ -5,27 +5,26 @@ import TextArea from '../components/TextArea'
 import Button from '../components/Button'
 import FileUpload from '../components/FileUpload'
 import Select from '../components/Select'
-import { vehicleAPI, generalMaintenanceAPI } from '../services/api'
+import { assetAPI, generalMaintenanceAPI } from '../services/api'
 import './GeneralMaintenance.css'
 
 function GeneralMaintenance() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Get pre-selected vehicle from navigation state
-  const preSelectedVehicleId = location.state?.vehicleId
+  const preSelectedAssetId = location.state?.assetId
 
-  const [vehicles, setVehicles] = useState([])
+  const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
 
   const [formData, setFormData] = useState({
-    vehicle_id: preSelectedVehicleId || '',
+    asset_id: preSelectedAssetId || '',
     description: '',
     date_performed: new Date().toISOString().split('T')[0],
-    mileage: '',
+    usage_reading: '',
     cost: '',
     notes: ''
   })
@@ -33,28 +32,27 @@ function GeneralMaintenance() {
   const [attachments, setAttachments] = useState([])
 
   useEffect(() => {
-    loadVehicles()
+    loadAssets()
   }, [])
 
-  const loadVehicles = async () => {
+  const loadAssets = async () => {
     try {
       setLoading(true)
-      const response = await vehicleAPI.getAll()
-      setVehicles(response.data)
+      const response = await assetAPI.getAll()
+      setAssets(response.data)
 
-      // If we have a pre-selected vehicle, load its current mileage
-      if (preSelectedVehicleId) {
-        const vehicle = response.data.find(v => v.id === preSelectedVehicleId)
-        if (vehicle) {
+      if (preSelectedAssetId) {
+        const asset = response.data.find(a => a.id === preSelectedAssetId)
+        if (asset && asset.usage_metric) {
           setFormData(prev => ({
             ...prev,
-            mileage: vehicle.current_mileage.toString()
+            usage_reading: asset.current_usage.toString()
           }))
         }
       }
     } catch (err) {
-      setError('Failed to load vehicles')
-      console.error('Error loading vehicles:', err)
+      setError('Failed to load assets')
+      console.error('Error loading assets:', err)
     } finally {
       setLoading(false)
     }
@@ -67,13 +65,17 @@ function GeneralMaintenance() {
       [name]: value
     }))
 
-    // When vehicle changes, update mileage
-    if (name === 'vehicle_id') {
-      const vehicle = vehicles.find(v => v.id === parseInt(value))
-      if (vehicle) {
+    if (name === 'asset_id') {
+      const asset = assets.find(a => a.id === parseInt(value))
+      if (asset && asset.usage_metric) {
         setFormData(prev => ({
           ...prev,
-          mileage: vehicle.current_mileage.toString()
+          usage_reading: asset.current_usage.toString()
+        }))
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          usage_reading: ''
         }))
       }
     }
@@ -89,19 +91,19 @@ function GeneralMaintenance() {
     setError(null)
 
     try {
-      // Create FormData for file upload
       const submitData = new FormData()
-      submitData.append('vehicle_id', formData.vehicle_id)
+      submitData.append('asset_id', formData.asset_id)
       submitData.append('description', formData.description)
       submitData.append('date_performed', formData.date_performed)
-      submitData.append('mileage', formData.mileage)
+      if (formData.usage_reading) {
+        submitData.append('usage_reading', formData.usage_reading)
+      }
       if (formData.cost) {
         submitData.append('cost', formData.cost)
       }
       if (formData.notes) {
         submitData.append('notes', formData.notes)
       }
-      // Add multiple attachments
       attachments.forEach(file => {
         submitData.append('attachments', file)
       })
@@ -110,9 +112,8 @@ function GeneralMaintenance() {
 
       setSuccess(true)
 
-      // Redirect back to vehicle detail page after a brief delay
       setTimeout(() => {
-        navigate(`/vehicle/${formData.vehicle_id}`)
+        navigate(`/asset/${formData.asset_id}`)
       }, 1500)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to log general maintenance')
@@ -121,7 +122,7 @@ function GeneralMaintenance() {
     }
   }
 
-  const selectedVehicle = vehicles.find(v => v.id === parseInt(formData.vehicle_id))
+  const selectedAsset = assets.find(a => a.id === parseInt(formData.asset_id))
 
   if (loading) {
     return <div className="loading">Loading...</div>
@@ -131,8 +132,8 @@ function GeneralMaintenance() {
     return (
       <div className="general-maintenance-page">
         <div className="success-message">
-          <h2>✓ General Maintenance Logged Successfully!</h2>
-          <p>Redirecting back to vehicle details...</p>
+          <h2>General Maintenance Logged Successfully!</h2>
+          <p>Redirecting back to asset details...</p>
         </div>
       </div>
     )
@@ -155,25 +156,25 @@ function GeneralMaintenance() {
 
       <form onSubmit={handleSubmit} className="general-maintenance-form">
         <div className="form-section">
-          <h3>Select Vehicle</h3>
+          <h3>Select Asset</h3>
 
           <Select
-            label="Vehicle"
-            name="vehicle_id"
-            value={formData.vehicle_id}
+            label="Asset"
+            name="asset_id"
+            value={formData.asset_id}
             onChange={handleChange}
             options={[
-              { value: '', label: 'Select a vehicle...' },
-              ...vehicles.map(v => ({
-                value: v.id.toString(),
-                label: `${v.year} ${v.make} ${v.model}`
+              { value: '', label: 'Select an asset...' },
+              ...assets.map(a => ({
+                value: a.id.toString(),
+                label: a.name
               }))
             ]}
             required
           />
         </div>
 
-        {formData.vehicle_id && (
+        {formData.asset_id && (
           <>
             <div className="form-section">
               <h3>Maintenance Details</h3>
@@ -184,7 +185,7 @@ function GeneralMaintenance() {
                 type="text"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="e.g., AC Repair, Body Work, Tire Replacement"
+                placeholder="e.g., Deep Clean, Repair, Replacement"
                 required
               />
 
@@ -199,21 +200,22 @@ function GeneralMaintenance() {
                   required
                 />
 
-                <Input
-                  label="Current Mileage"
-                  name="mileage"
-                  type="number"
-                  value={formData.mileage}
-                  onChange={handleChange}
-                  placeholder="e.g., 25000"
-                  min="0"
-                  required
-                />
+                {selectedAsset?.usage_metric && (
+                  <Input
+                    label={`Current ${selectedAsset.usage_metric}`}
+                    name="usage_reading"
+                    type="number"
+                    value={formData.usage_reading}
+                    onChange={handleChange}
+                    placeholder={`e.g., 25000`}
+                    min="0"
+                  />
+                )}
               </div>
 
-              {selectedVehicle && (
+              {selectedAsset?.usage_metric && (
                 <p className="mileage-hint">
-                  Vehicle's last recorded mileage: {selectedVehicle.current_mileage.toLocaleString()} miles
+                  Last recorded {selectedAsset.usage_metric}: {selectedAsset.current_usage.toLocaleString()}
                 </p>
               )}
 
@@ -233,7 +235,7 @@ function GeneralMaintenance() {
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                placeholder="e.g., Description of work performed, parts replaced, shop visited..."
+                placeholder="e.g., Description of work performed, parts replaced..."
                 rows={4}
               />
             </div>

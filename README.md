@@ -1,6 +1,6 @@
-# Car Maintenance Tracker
+# Upkeep
 
-A Docker-based web application for tracking vehicle maintenance, accessible on mobile and desktop browsers.
+A Docker-based web application for tracking maintenance on anything — vehicles, appliances, rooms, equipment, and more.
 
 ## Quick Start
 
@@ -26,34 +26,28 @@ Quick deployment:
 ./deploy.sh
 ```
 
-## What's Working Now
+## Features
 
-### ✅ Add Vehicles
-- Add vehicles with year, make, model, engine type, and current mileage
-- Add multiple maintenance items per vehicle:
-  - **Mileage-based** (e.g., "Oil change every 5000 miles")
-  - **Time-based** (e.g., "Battery every 3 years")
-  - Optional notes for part numbers and specifications
+### Assets
+- Track any asset: vehicles, appliances, rooms, equipment, etc.
+- Optional custom usage metrics (miles, hours, cycles, etc.)
+- Organize with categories and locations
 
-### ✅ View Vehicles
-- Dashboard showing all your vehicles
-- See current mileage for each vehicle
+### Maintenance Tracking
+- **Time-based** scheduling (e.g., "Replace filter every 3 months")
+- **Usage-based** scheduling (e.g., "Oil change every 5000 miles")
+- Visual dashboard with progress bars and color-coded status
+- Top 3 urgent maintenance items per asset
 
-### ✅ Dashboard & Tracking
-- Visual dashboard showing all vehicles
-- Top 3 urgent maintenance items per vehicle with progress bars
-- Color-coded status (overdue, due soon, good)
-- Track both scheduled and general maintenance
-- Multiple file attachments (photos, PDFs, documents)
-- Cost tracking for all maintenance
-- Export/import for data backup
-
-### ✅ Maintenance Features
-- Log scheduled maintenance (oil changes, tire rotations, etc.)
+### Logging
+- Log scheduled maintenance with dates, costs, and notes
 - Log general maintenance (one-off repairs, upgrades)
-- Complete maintenance history with editing
 - File attachments (up to 5 per log, 16MB each)
-- Automatic status calculation based on mileage or time
+- Complete maintenance history with inline editing
+
+### Data Management
+- Export/import for data backup (JSON format)
+- Automatic usage tracking updates
 
 ## Tech Stack
 
@@ -101,30 +95,25 @@ Port 5000 is used by macOS Control Center (AirPlay). The backend runs on **port 
 └── README.md         # This file
 ```
 
-## Documentation
-
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide for Proxmox/VPS
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Complete project status, phases, API docs, next steps
-- **SETUP.md** - Detailed setup and troubleshooting (development)
-- **TESTING.md** - Testing guide with examples
-
 ## API Endpoints
 
-### Vehicles
-- `GET /api/vehicles` - List all vehicles
-- `POST /api/vehicles` - Create vehicle
-- `PUT /api/vehicles/:id` - Update vehicle
-- `DELETE /api/vehicles/:id` - Delete vehicle
+### Assets
+- `GET /api/assets` - List all assets
+- `POST /api/assets` - Create asset
+- `PUT /api/assets/:id` - Update asset
+- `DELETE /api/assets/:id` - Delete asset
 
 ### Maintenance Items
-- `GET /api/maintenance-items?vehicle_id=:id` - List items
+- `GET /api/maintenance-items?asset_id=:id` - List items
 - `POST /api/maintenance-items` - Create item
 
 ### Maintenance Logs
 - `GET /api/maintenance-logs?maintenance_item_id=:id` - List logs
-- `POST /api/maintenance-logs` - Create log (with photo upload)
+- `POST /api/maintenance-logs` - Create log (with file upload)
 
-See PROJECT_STATUS.md for complete API documentation.
+### Backup
+- `GET /api/backup/export` - Export all data
+- `POST /api/backup/import` - Import data from backup
 
 ## License
 

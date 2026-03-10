@@ -1,6 +1,6 @@
-# Car Maintenance Tracker - Deployment Guide
+# Upkeep - Deployment Guide
 
-This guide will help you deploy the Car Maintenance Tracker to your Proxmox VM for production use.
+This guide will help you deploy Upkeep to your Proxmox VM for production use.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ This guide will help you deploy the Car Maintenance Tracker to your Proxmox VM f
 2. **Create VM in Proxmox**
    ```
    - Click "Create VM" in Proxmox web interface
-   - General: Name it "car-maintenance" or similar
+   - General: Name it "upkeep" or similar
    - OS: Select the ISO you downloaded
    - System: Default settings (UEFI optional)
    - Disks: 20GB is plenty
@@ -100,8 +100,8 @@ docker compose version
 ```bash
 # Clone from GitHub
 cd ~
-git clone https://github.com/buffamatthew/car_maintenance_tracker.git
-cd car_maintenance_tracker
+git clone https://github.com/buffamatthew/upkeep.git
+cd upkeep
 ```
 
 ### Run Initial Deployment
@@ -137,7 +137,7 @@ Replace `192.168.1.100` with your VM's IP address.
 When you want to update to the latest version:
 
 ```bash
-cd ~/car_maintenance_tracker
+cd ~/upkeep
 ./deploy.sh
 ```
 
@@ -163,14 +163,14 @@ docker-compose -f docker-compose.prod.yml logs -f frontend
 ### Stopping the Application
 
 ```bash
-cd ~/car_maintenance_tracker
+cd ~/upkeep
 docker-compose -f docker-compose.prod.yml down
 ```
 
 ### Starting the Application
 
 ```bash
-cd ~/car_maintenance_tracker
+cd ~/upkeep
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -186,14 +186,14 @@ docker-compose -f docker-compose.prod.yml ps
 
 ```bash
 # Create backups directory
-mkdir -p ~/car_maintenance_tracker/backups
+mkdir -p ~/upkeep/backups
 
 # Backup database
 docker run --rm \
-  -v car_maintenance_tracker_db-data:/data \
-  -v ~/car_maintenance_tracker/backups:/backup \
+  -v upkeep_db-data:/data \
+  -v ~/upkeep/backups:/backup \
   alpine \
-  cp /data/car_maintenance.db /backup/car_maintenance_$(date +%Y%m%d_%H%M%S).db
+  cp /data/upkeep.db /backup/upkeep_$(date +%Y%m%d_%H%M%S).db
 ```
 
 ### Using the Web Interface
@@ -247,10 +247,10 @@ sudo ufw allow 3000/tcp  # If needed
 
 ```bash
 # Check database volume
-docker volume ls | grep car_maintenance
+docker volume ls | grep upkeep
 
 # Inspect volume
-docker volume inspect car_maintenance_tracker_db-data
+docker volume inspect upkeep_db-data
 ```
 
 ### Out of disk space
@@ -269,21 +269,21 @@ To make the app start automatically when VM reboots:
 
 ```bash
 # Create systemd service
-sudo nano /etc/systemd/system/car-maintenance.service
+sudo nano /etc/systemd/system/upkeep.service
 ```
 
 Paste this content:
 
 ```ini
 [Unit]
-Description=Car Maintenance Tracker
+Description=Upkeep
 Requires=docker.service
 After=docker.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/home/YOUR_USERNAME/car_maintenance_tracker
+WorkingDirectory=/home/YOUR_USERNAME/upkeep
 ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
 User=YOUR_USERNAME
@@ -296,11 +296,11 @@ Replace `YOUR_USERNAME` with your actual username, then:
 
 ```bash
 # Enable and start the service
-sudo systemctl enable car-maintenance.service
-sudo systemctl start car-maintenance.service
+sudo systemctl enable upkeep.service
+sudo systemctl start upkeep.service
 
 # Check status
-sudo systemctl status car-maintenance.service
+sudo systemctl status upkeep.service
 ```
 
 ## Security Notes
@@ -345,4 +345,4 @@ If you run into issues:
 
 ---
 
-**You're all set!** Enjoy your self-hosted car maintenance tracker! 🚗✨
+**You're all set!** Enjoy your self-hosted Upkeep instance!

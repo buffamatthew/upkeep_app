@@ -2,30 +2,30 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import MaintenanceItemForm from '../components/MaintenanceItemForm'
-import { vehicleAPI, maintenanceItemAPI } from '../services/api'
+import { assetAPI, maintenanceItemAPI } from '../services/api'
 import './AddMaintenanceItem.css'
 
 function AddMaintenanceItem() {
-  const { vehicleId } = useParams()
+  const { assetId } = useParams()
   const navigate = useNavigate()
 
-  const [vehicle, setVehicle] = useState(null)
+  const [asset, setAsset] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    loadVehicle()
-  }, [vehicleId])
+    loadAsset()
+  }, [assetId])
 
-  const loadVehicle = async () => {
+  const loadAsset = async () => {
     try {
       setLoading(true)
-      const response = await vehicleAPI.getById(vehicleId)
-      setVehicle(response.data)
+      const response = await assetAPI.getById(assetId)
+      setAsset(response.data)
     } catch (err) {
-      setError('Failed to load vehicle')
-      console.error('Error loading vehicle:', err)
+      setError('Failed to load asset')
+      console.error('Error loading asset:', err)
     } finally {
       setLoading(false)
     }
@@ -38,10 +38,10 @@ function AddMaintenanceItem() {
     try {
       await maintenanceItemAPI.create({
         ...item,
-        vehicle_id: parseInt(vehicleId)
+        asset_id: parseInt(assetId)
       })
 
-      navigate(`/vehicle/${vehicleId}`)
+      navigate(`/asset/${assetId}`)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add maintenance item')
       console.error('Error adding maintenance item:', err)
@@ -53,11 +53,11 @@ function AddMaintenanceItem() {
     return <div className="loading">Loading...</div>
   }
 
-  if (error && !vehicle) {
+  if (error && !asset) {
     return (
       <div className="add-maintenance-item-page">
         <div className="error-alert">{error}</div>
-        <Button onClick={() => navigate(`/vehicle/${vehicleId}`)}>Back to Vehicle</Button>
+        <Button onClick={() => navigate(`/asset/${assetId}`)}>Back to Asset</Button>
       </div>
     )
   }
@@ -67,13 +67,13 @@ function AddMaintenanceItem() {
       <div className="page-header">
         <div>
           <h2>Add Maintenance Item</h2>
-          {vehicle && (
+          {asset && (
             <p className="vehicle-name">
-              {vehicle.year} {vehicle.make} {vehicle.model}
+              {asset.name}
             </p>
           )}
         </div>
-        <Button variant="outline" onClick={() => navigate(`/vehicle/${vehicleId}`)}>
+        <Button variant="outline" onClick={() => navigate(`/asset/${assetId}`)}>
           Cancel
         </Button>
       </div>
@@ -85,7 +85,10 @@ function AddMaintenanceItem() {
       )}
 
       <div className="form-container">
-        <MaintenanceItemForm onAdd={handleAddItem} />
+        <MaintenanceItemForm
+          onAdd={handleAddItem}
+          usageMetric={asset?.usage_metric}
+        />
       </div>
     </div>
   )

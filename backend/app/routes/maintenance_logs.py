@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app import db
-from app.models import MaintenanceLog, MaintenanceItem, Vehicle, Attachment
+from app.models import MaintenanceLog, MaintenanceItem, Asset, Attachment
 from datetime import datetime
 import os
 
@@ -33,7 +33,6 @@ def get_maintenance_log(log_id):
 
 @bp.route('', methods=['POST'])
 def create_maintenance_log():
-    # Use request.form for multipart/form-data, request.get_json() for application/json
     data = request.form if request.form else request.get_json()
 
     # Verify maintenance item exists
@@ -42,45 +41,42 @@ def create_maintenance_log():
     # Parse date
     date_performed = datetime.fromisoformat(data['date_performed']).date()
 
-    # Handle legacy single file upload (for backwards compatibility)
+    # Handle legacy single file upload
     receipt_photo = None
     if 'receipt_photo' in request.files:
         file = request.files['receipt_photo']
         if file and file.filename and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            # Add timestamp to prevent collisions
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"{timestamp}_{filename}"
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             receipt_photo = filename
 
-    # Convert mileage and cost to appropriate types if provided
-    mileage = int(data.get('mileage')) if data.get('mileage') else None
+    # Convert usage_reading and cost to appropriate types if provided
+    usage_reading = int(data.get('usage_reading')) if data.get('usage_reading') else None
     cost = float(data.get('cost')) if data.get('cost') else None
 
     log = MaintenanceLog(
         maintenance_item_id=data['maintenance_item_id'],
         date_performed=date_performed,
-        mileage=mileage,
+        usage_reading=usage_reading,
         cost=cost,
         notes=data.get('notes'),
         receipt_photo=receipt_photo
     )
 
     db.session.add(log)
-    db.session.flush()  # Get the log ID
+    db.session.flush()
 
     # Handle multiple file attachments
     files = request.files.getlist('attachments')
 
-    # Validate attachment count
     if len(files) > current_app.config['MAX_ATTACHMENTS_PER_LOG']:
         return jsonify({'error': f"Maximum {current_app.config['MAX_ATTACHMENTS_PER_LOG']} attachments allowed"}), 400
 
     for file in files:
         if file and file.filename and allowed_file(file.filename):
-            # Validate file size
             if not validate_file_size(file):
                 return jsonify({'error': f"File {file.filename} exceeds maximum size of {current_app.config['MAX_ATTACHMENT_SIZE'] / (1024*1024)}MB"}), 400
 
@@ -90,7 +86,6 @@ def create_maintenance_log():
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(filepath)
 
-            # Create attachment record
             attachment = Attachment(
                 filename=filename,
                 file_path=filepath,
@@ -102,11 +97,11 @@ def create_maintenance_log():
         elif file and file.filename:
             return jsonify({'error': f"File type not allowed for {file.filename}"}), 400
 
-    # Update vehicle mileage if provided and higher than current
-    if log.mileage:
-        vehicle = Vehicle.query.get(item.vehicle_id)
-        if vehicle and log.mileage > vehicle.current_mileage:
-            vehicle.current_mileage = log.mileage
+    # Update asset usage if provided and higher than current
+    if log.usage_reading:
+        asset = Asset.query.get(item.asset_id)
+        if asset and asset.usage_metric and log.usage_reading > asset.current_usage:
+            asset.current_usage = log.usage_reading
 
     db.session.commit()
 
@@ -116,36 +111,29 @@ def create_maintenance_log():
 def update_maintenance_log(log_id):
     log = MaintenanceLog.query.get_or_404(log_id)
 
-    # Use request.form for multipart/form-data, request.get_json() for application/json
     data = request.form if request.form else request.get_json()
 
-    # Update date if provided
     if 'date_performed' in data:
         log.date_performed = datetime.fromisoformat(data['date_performed']).date()
 
-    # Update mileage if provided
-    if 'mileage' in data:
-        log.mileage = int(data.get('mileage')) if data.get('mileage') else None
+    if 'usage_reading' in data:
+        log.usage_reading = int(data.get('usage_reading')) if data.get('usage_reading') else None
 
-    # Update cost if provided
     if 'cost' in data:
         log.cost = float(data.get('cost')) if data.get('cost') else None
 
-    # Update notes if provided
     if 'notes' in data:
         log.notes = data.get('notes')
 
     # Handle new file attachments
     files = request.files.getlist('attachments')
 
-    # Validate total attachment count (existing + new)
     total_attachments = len(log.attachments) + len(files)
     if total_attachments > current_app.config['MAX_ATTACHMENTS_PER_LOG']:
         return jsonify({'error': f"Maximum {current_app.config['MAX_ATTACHMENTS_PER_LOG']} attachments allowed per log"}), 400
 
     for file in files:
         if file and file.filename and allowed_file(file.filename):
-            # Validate file size
             if not validate_file_size(file):
                 return jsonify({'error': f"File {file.filename} exceeds maximum size of {current_app.config['MAX_ATTACHMENT_SIZE'] / (1024*1024)}MB"}), 400
 
@@ -169,7 +157,6 @@ def update_maintenance_log(log_id):
     # Handle receipt removal
     if data.get('remove_receipt'):
         if log.receipt_photo:
-            # Delete the file
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], log.receipt_photo)
             if os.path.exists(filepath):
                 os.remove(filepath)
@@ -179,13 +166,11 @@ def update_maintenance_log(log_id):
     if 'receipt_photo' in request.files:
         file = request.files['receipt_photo']
         if file and file.filename and allowed_file(file.filename):
-            # Delete old file if exists
             if log.receipt_photo:
                 old_filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], log.receipt_photo)
                 if os.path.exists(old_filepath):
                     os.remove(old_filepath)
 
-            # Save new file
             filename = secure_filename(file.filename)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"{timestamp}_{filename}"
@@ -193,12 +178,12 @@ def update_maintenance_log(log_id):
             file.save(filepath)
             log.receipt_photo = filename
 
-    # Update vehicle mileage if needed
-    if log.mileage:
+    # Update asset usage if needed
+    if log.usage_reading:
         item = MaintenanceItem.query.get(log.maintenance_item_id)
-        vehicle = Vehicle.query.get(item.vehicle_id)
-        if vehicle and log.mileage > vehicle.current_mileage:
-            vehicle.current_mileage = log.mileage
+        asset = Asset.query.get(item.asset_id)
+        if asset and asset.usage_metric and log.usage_reading > asset.current_usage:
+            asset.current_usage = log.usage_reading
 
     db.session.commit()
 
@@ -208,13 +193,11 @@ def update_maintenance_log(log_id):
 def delete_maintenance_log(log_id):
     log = MaintenanceLog.query.get_or_404(log_id)
 
-    # Delete associated legacy file if exists
     if log.receipt_photo:
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], log.receipt_photo)
         if os.path.exists(filepath):
             os.remove(filepath)
 
-    # Delete all attachments
     for attachment in log.attachments:
         if os.path.exists(attachment.file_path):
             os.remove(attachment.file_path)
@@ -229,7 +212,6 @@ def delete_attachment(id):
     """Delete a specific attachment"""
     attachment = Attachment.query.get_or_404(id)
 
-    # Delete the file
     if os.path.exists(attachment.file_path):
         os.remove(attachment.file_path)
 

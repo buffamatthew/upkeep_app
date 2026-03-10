@@ -3,14 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import AttachmentDisplay from '../components/AttachmentDisplay'
 import FileUpload from '../components/FileUpload'
-import { vehicleAPI, generalMaintenanceAPI } from '../services/api'
+import { assetAPI, generalMaintenanceAPI } from '../services/api'
+import { parseLocalDate } from '../utils/date'
 import './GeneralMaintenanceHistory.css'
 
 function GeneralMaintenanceHistory() {
-  const { vehicleId } = useParams()
+  const { assetId } = useParams()
   const navigate = useNavigate()
 
-  const [vehicle, setVehicle] = useState(null)
+  const [asset, setAsset] = useState(null)
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -18,7 +19,7 @@ function GeneralMaintenanceHistory() {
   const [editFormData, setEditFormData] = useState({
     description: '',
     date_performed: '',
-    mileage: '',
+    usage_reading: '',
     cost: '',
     notes: ''
   })
@@ -26,21 +27,20 @@ function GeneralMaintenanceHistory() {
 
   useEffect(() => {
     loadData()
-  }, [vehicleId])
+  }, [assetId])
 
   const loadData = async () => {
     try {
       setLoading(true)
 
-      // Load vehicle and general maintenance records
-      const [vehicleRes, recordsRes] = await Promise.all([
-        vehicleAPI.getById(vehicleId),
-        generalMaintenanceAPI.getAll(vehicleId)
+      const [assetRes, recordsRes] = await Promise.all([
+        assetAPI.getById(assetId),
+        generalMaintenanceAPI.getAll(assetId)
       ])
 
-      setVehicle(vehicleRes.data)
+      setAsset(assetRes.data)
       setRecords(recordsRes.data.sort((a, b) =>
-        new Date(b.date_performed) - new Date(a.date_performed)
+        parseLocalDate(b.date_performed) - parseLocalDate(a.date_performed)
       ))
     } catch (err) {
       setError('Failed to load general maintenance history')
@@ -55,7 +55,7 @@ function GeneralMaintenanceHistory() {
     setEditFormData({
       description: record.description,
       date_performed: record.date_performed,
-      mileage: record.mileage || '',
+      usage_reading: record.usage_reading || '',
       cost: record.cost || '',
       notes: record.notes || ''
     })
@@ -66,7 +66,7 @@ function GeneralMaintenanceHistory() {
     setEditFormData({
       description: '',
       date_performed: '',
-      mileage: '',
+      usage_reading: '',
       cost: '',
       notes: ''
     })
@@ -92,7 +92,6 @@ function GeneralMaintenanceHistory() {
 
     try {
       await generalMaintenanceAPI.deleteAttachment(attachmentId)
-      // Reload data to refresh the attachments
       loadData()
     } catch (err) {
       setError('Failed to delete attachment')
@@ -102,15 +101,13 @@ function GeneralMaintenanceHistory() {
 
   const handleSaveEdit = async (recordId) => {
     try {
-      // Only use FormData if there's a file to upload, otherwise use JSON
       let submitData
       if (newAttachments.length > 0) {
-        // Has file - use FormData
         submitData = new FormData()
         submitData.append('description', editFormData.description)
         submitData.append('date_performed', editFormData.date_performed)
-        if (editFormData.mileage) {
-          submitData.append('mileage', editFormData.mileage)
+        if (editFormData.usage_reading) {
+          submitData.append('usage_reading', editFormData.usage_reading)
         }
         if (editFormData.cost) {
           submitData.append('cost', editFormData.cost)
@@ -118,16 +115,14 @@ function GeneralMaintenanceHistory() {
         if (editFormData.notes) {
           submitData.append('notes', editFormData.notes)
         }
-        // Add new attachments
         newAttachments.forEach(file => {
           submitData.append('attachments', file)
         })
       } else {
-        // No file - use JSON
         submitData = {
           description: editFormData.description,
           date_performed: editFormData.date_performed,
-          mileage: editFormData.mileage || null,
+          usage_reading: editFormData.usage_reading || null,
           cost: editFormData.cost || null,
           notes: editFormData.notes || null
         }
@@ -135,13 +130,12 @@ function GeneralMaintenanceHistory() {
 
       const response = await generalMaintenanceAPI.update(recordId, submitData)
 
-      // Update the record in the list
       setRecords(records.map(record => record.id === recordId ? response.data : record))
       setEditingRecordId(null)
       setEditFormData({
         description: '',
         date_performed: '',
-        mileage: '',
+        usage_reading: '',
         cost: '',
         notes: ''
       })
@@ -167,7 +161,7 @@ function GeneralMaintenanceHistory() {
   }
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
+    const date = parseLocalDate(dateString)
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -179,12 +173,12 @@ function GeneralMaintenanceHistory() {
     return <div className="loading">Loading history...</div>
   }
 
-  if (error || !vehicle) {
+  if (error || !asset) {
     return (
       <div className="general-maintenance-history-page">
         <div className="error-alert">{error || 'Data not found'}</div>
-        <Button onClick={() => navigate(`/vehicle/${vehicleId}`)}>
-          Back to Vehicle
+        <Button onClick={() => navigate(`/asset/${assetId}`)}>
+          Back to Asset
         </Button>
       </div>
     )
@@ -196,22 +190,22 @@ function GeneralMaintenanceHistory() {
         <div>
           <h2>General Maintenance History</h2>
           <p className="vehicle-name">
-            {vehicle.year} {vehicle.make} {vehicle.model}
+            {asset.name}
           </p>
         </div>
         <div className="header-actions">
           <Button
             onClick={() => navigate('/general-maintenance', {
-              state: { vehicleId: vehicle.id }
+              state: { assetId: asset.id }
             })}
           >
             + Log New
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate(`/vehicle/${vehicleId}`)}
+            onClick={() => navigate(`/asset/${assetId}`)}
           >
-            Back to Vehicle
+            Back to Asset
           </Button>
         </div>
       </div>
@@ -219,10 +213,10 @@ function GeneralMaintenanceHistory() {
       {records.length === 0 ? (
         <div className="empty-state">
           <h3>No general maintenance logged yet</h3>
-          <p>Add one-off repairs, services, or modifications here.</p>
+          <p>Add one-off repairs, services, or work here.</p>
           <Button
             onClick={() => navigate('/general-maintenance', {
-              state: { vehicleId: vehicle.id }
+              state: { assetId: asset.id }
             })}
           >
             Log First Record
@@ -237,7 +231,6 @@ function GeneralMaintenanceHistory() {
           {records.map((record) => (
             <div key={record.id} className="record-card">
               {editingRecordId === record.id ? (
-                // Edit mode
                 <div className="record-edit-form">
                   <div className="form-group">
                     <label>Title</label>
@@ -261,16 +254,18 @@ function GeneralMaintenanceHistory() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Mileage (optional)</label>
-                    <input
-                      type="number"
-                      name="mileage"
-                      value={editFormData.mileage}
-                      onChange={handleEditFormChange}
-                      placeholder="e.g., 50000"
-                    />
-                  </div>
+                  {asset.usage_metric && (
+                    <div className="form-group">
+                      <label>{asset.usage_metric} (optional)</label>
+                      <input
+                        type="number"
+                        name="usage_reading"
+                        value={editFormData.usage_reading}
+                        onChange={handleEditFormChange}
+                        placeholder={`e.g., 50000`}
+                      />
+                    </div>
+                  )}
 
                   <div className="form-group">
                     <label>Cost (optional)</label>
@@ -327,7 +322,6 @@ function GeneralMaintenanceHistory() {
                   </div>
                 </div>
               ) : (
-                // View mode
                 <>
                   <div className="record-header">
                     <h3 className="record-title">{record.description}</h3>
@@ -338,10 +332,10 @@ function GeneralMaintenanceHistory() {
                   </div>
 
                   <div className="record-details">
-                    {record.mileage && (
+                    {record.usage_reading && asset.usage_metric && (
                       <div className="record-mileage">
-                        <span className="mileage-value">{record.mileage.toLocaleString()}</span>
-                        <span className="mileage-unit">miles</span>
+                        <span className="mileage-value">{record.usage_reading.toLocaleString()}</span>
+                        <span className="mileage-unit">{asset.usage_metric}</span>
                       </div>
                     )}
                     {record.cost && (

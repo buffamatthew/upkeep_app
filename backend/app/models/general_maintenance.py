@@ -5,11 +5,11 @@ class GeneralMaintenance(db.Model):
     __tablename__ = 'general_maintenance'
 
     id = db.Column(db.Integer, primary_key=True)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.id'), nullable=False)
-    description = db.Column(db.String(255), nullable=False)  # What was done
+    asset_id = db.Column(db.Integer, db.ForeignKey('assets.id'), nullable=False)
+    description = db.Column(db.String(255), nullable=False)
     date_performed = db.Column(db.Date, nullable=False)
-    mileage = db.Column(db.Integer)
-    cost = db.Column(db.Numeric(10, 2))  # Store cost with 2 decimal places
+    usage_reading = db.Column(db.Integer)  # Optional usage value at time of maintenance
+    cost = db.Column(db.Numeric(10, 2))
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -20,10 +20,10 @@ class GeneralMaintenance(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'vehicle_id': self.vehicle_id,
+            'asset_id': self.asset_id,
             'description': self.description,
             'date_performed': self.date_performed.isoformat() if self.date_performed else None,
-            'mileage': self.mileage,
+            'usage_reading': self.usage_reading,
             'cost': float(self.cost) if self.cost else None,
             'notes': self.notes,
             'attachments': [att.to_dict() for att in self.attachments] if self.attachments else [],

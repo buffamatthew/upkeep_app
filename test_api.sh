@@ -1,52 +1,53 @@
 #!/bin/bash
 
-# Car Maintenance Tracker API Test Script
+# Upkeep API Test Script
 # Make sure the application is running with: docker-compose up
 
 BASE_URL="http://localhost:5001/api"
 
 echo "======================================"
-echo "Car Maintenance Tracker API Tests"
+echo "Upkeep API Tests"
 echo "======================================"
 echo ""
 
-# Test 1: Get all vehicles (should be empty initially)
-echo "Test 1: GET /api/vehicles (should be empty)"
-curl -s -X GET "${BASE_URL}/vehicles" | python3 -m json.tool
+# Test 1: Get all assets (should be empty initially)
+echo "Test 1: GET /api/assets (should be empty)"
+curl -s -X GET "${BASE_URL}/assets" | python3 -m json.tool
 echo ""
 echo ""
 
-# Test 2: Create a vehicle
-echo "Test 2: POST /api/vehicles (create Toyota Camry)"
-VEHICLE_RESPONSE=$(curl -s -X POST "${BASE_URL}/vehicles" \
+# Test 2: Create an asset
+echo "Test 2: POST /api/assets (create Toyota Camry)"
+ASSET_RESPONSE=$(curl -s -X POST "${BASE_URL}/assets" \
   -H "Content-Type: application/json" \
   -d '{
-    "year": 2020,
-    "make": "Toyota",
-    "model": "Camry",
-    "engine_type": "2.5L 4-cylinder",
-    "current_mileage": 25000
+    "name": "2020 Toyota Camry",
+    "description": "Family sedan",
+    "category": "Vehicle",
+    "location": "Garage",
+    "usage_metric": "miles",
+    "current_usage": 25000
   }')
-echo "$VEHICLE_RESPONSE" | python3 -m json.tool
-VEHICLE_ID=$(echo "$VEHICLE_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+echo "$ASSET_RESPONSE" | python3 -m json.tool
+ASSET_ID=$(echo "$ASSET_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 echo ""
-echo "Created vehicle with ID: $VEHICLE_ID"
-echo ""
-
-# Test 3: Get the vehicle we just created
-echo "Test 3: GET /api/vehicles/${VEHICLE_ID}"
-curl -s -X GET "${BASE_URL}/vehicles/${VEHICLE_ID}" | python3 -m json.tool
-echo ""
+echo "Created asset with ID: $ASSET_ID"
 echo ""
 
-# Test 4: Create a maintenance item for the vehicle
+# Test 3: Get the asset we just created
+echo "Test 3: GET /api/assets/${ASSET_ID}"
+curl -s -X GET "${BASE_URL}/assets/${ASSET_ID}" | python3 -m json.tool
+echo ""
+echo ""
+
+# Test 4: Create a maintenance item for the asset
 echo "Test 4: POST /api/maintenance-items (create Oil Change)"
 ITEM_RESPONSE=$(curl -s -X POST "${BASE_URL}/maintenance-items" \
   -H "Content-Type: application/json" \
   -d "{
-    \"vehicle_id\": ${VEHICLE_ID},
+    \"asset_id\": ${ASSET_ID},
     \"name\": \"Oil Change\",
-    \"maintenance_type\": \"mileage\",
+    \"maintenance_type\": \"usage\",
     \"frequency_value\": 5000,
     \"frequency_unit\": \"miles\",
     \"notes\": \"Use 5W-30 synthetic oil\"
@@ -62,9 +63,9 @@ echo "Test 5: POST /api/maintenance-items (create Tire Rotation)"
 ITEM2_RESPONSE=$(curl -s -X POST "${BASE_URL}/maintenance-items" \
   -H "Content-Type: application/json" \
   -d "{
-    \"vehicle_id\": ${VEHICLE_ID},
+    \"asset_id\": ${ASSET_ID},
     \"name\": \"Tire Rotation\",
-    \"maintenance_type\": \"mileage\",
+    \"maintenance_type\": \"usage\",
     \"frequency_value\": 10000,
     \"frequency_unit\": \"miles\"
   }")
@@ -73,9 +74,9 @@ ITEM2_ID=$(echo "$ITEM2_RESPONSE" | python3 -c "import sys, json; print(json.loa
 echo ""
 echo ""
 
-# Test 6: Get all maintenance items for the vehicle
-echo "Test 6: GET /api/maintenance-items?vehicle_id=${VEHICLE_ID}"
-curl -s -X GET "${BASE_URL}/maintenance-items?vehicle_id=${VEHICLE_ID}" | python3 -m json.tool
+# Test 6: Get all maintenance items for the asset
+echo "Test 6: GET /api/maintenance-items?asset_id=${ASSET_ID}"
+curl -s -X GET "${BASE_URL}/maintenance-items?asset_id=${ASSET_ID}" | python3 -m json.tool
 echo ""
 echo ""
 
@@ -86,7 +87,7 @@ LOG_RESPONSE=$(curl -s -X POST "${BASE_URL}/maintenance-logs" \
   -d "{
     \"maintenance_item_id\": ${ITEM_ID},
     \"date_performed\": \"2024-11-27\",
-    \"mileage\": 30000,
+    \"usage_reading\": 30000,
     \"notes\": \"Completed oil change at local shop\"
   }")
 echo "$LOG_RESPONSE" | python3 -m json.tool
@@ -95,11 +96,11 @@ echo ""
 echo "Created maintenance log with ID: $LOG_ID"
 echo ""
 
-# Test 8: Verify vehicle mileage was updated
-echo "Test 8: GET /api/vehicles/${VEHICLE_ID} (verify mileage updated)"
-curl -s -X GET "${BASE_URL}/vehicles/${VEHICLE_ID}" | python3 -m json.tool
+# Test 8: Verify asset usage was updated
+echo "Test 8: GET /api/assets/${ASSET_ID} (verify usage updated)"
+curl -s -X GET "${BASE_URL}/assets/${ASSET_ID}" | python3 -m json.tool
 echo ""
-echo "NOTE: current_mileage should now be 30000"
+echo "NOTE: current_usage should now be 30000"
 echo ""
 
 # Test 9: Get maintenance logs for the item
@@ -108,12 +109,12 @@ curl -s -X GET "${BASE_URL}/maintenance-logs?maintenance_item_id=${ITEM_ID}" | p
 echo ""
 echo ""
 
-# Test 10: Update vehicle mileage
-echo "Test 10: PUT /api/vehicles/${VEHICLE_ID} (update mileage)"
-curl -s -X PUT "${BASE_URL}/vehicles/${VEHICLE_ID}" \
+# Test 10: Update asset usage
+echo "Test 10: PUT /api/assets/${ASSET_ID} (update usage)"
+curl -s -X PUT "${BASE_URL}/assets/${ASSET_ID}" \
   -H "Content-Type: application/json" \
   -d '{
-    "current_mileage": 32000
+    "current_usage": 32000
   }' | python3 -m json.tool
 echo ""
 echo ""
@@ -123,9 +124,9 @@ echo "All tests completed!"
 echo "======================================"
 echo ""
 echo "Summary:"
-echo "- Created vehicle ID: $VEHICLE_ID"
+echo "- Created asset ID: $ASSET_ID"
 echo "- Created maintenance items: $ITEM_ID (Oil Change), $ITEM2_ID (Tire Rotation)"
 echo "- Created maintenance log: $LOG_ID"
 echo ""
-echo "To clean up, you can delete the vehicle (this will cascade delete items and logs):"
-echo "curl -X DELETE ${BASE_URL}/vehicles/${VEHICLE_ID}"
+echo "To clean up, you can delete the asset (this will cascade delete items and logs):"
+echo "curl -X DELETE ${BASE_URL}/assets/${ASSET_ID}"

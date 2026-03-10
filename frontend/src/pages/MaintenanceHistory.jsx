@@ -3,14 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import AttachmentDisplay from '../components/AttachmentDisplay'
 import FileUpload from '../components/FileUpload'
-import { vehicleAPI, maintenanceItemAPI, maintenanceLogAPI } from '../services/api'
+import { assetAPI, maintenanceItemAPI, maintenanceLogAPI } from '../services/api'
+import { parseLocalDate } from '../utils/date'
 import './MaintenanceHistory.css'
 
 function MaintenanceHistory() {
-  const { vehicleId, itemId } = useParams()
+  const { assetId, itemId } = useParams()
   const navigate = useNavigate()
 
-  const [vehicle, setVehicle] = useState(null)
+  const [asset, setAsset] = useState(null)
   const [maintenanceItem, setMaintenanceItem] = useState(null)
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,7 +19,7 @@ function MaintenanceHistory() {
   const [editingLogId, setEditingLogId] = useState(null)
   const [editFormData, setEditFormData] = useState({
     date_performed: '',
-    mileage: '',
+    usage_reading: '',
     cost: '',
     notes: '',
     receipt_photo: null,
@@ -28,23 +29,22 @@ function MaintenanceHistory() {
 
   useEffect(() => {
     loadData()
-  }, [vehicleId, itemId])
+  }, [assetId, itemId])
 
   const loadData = async () => {
     try {
       setLoading(true)
 
-      // Load vehicle, maintenance item, and logs
-      const [vehicleRes, itemRes, logsRes] = await Promise.all([
-        vehicleAPI.getById(vehicleId),
+      const [assetRes, itemRes, logsRes] = await Promise.all([
+        assetAPI.getById(assetId),
         maintenanceItemAPI.getById(itemId),
         maintenanceLogAPI.getAll(itemId)
       ])
 
-      setVehicle(vehicleRes.data)
+      setAsset(assetRes.data)
       setMaintenanceItem(itemRes.data)
       setLogs(logsRes.data.sort((a, b) =>
-        new Date(b.date_performed) - new Date(a.date_performed)
+        parseLocalDate(b.date_performed) - parseLocalDate(a.date_performed)
       ))
     } catch (err) {
       setError('Failed to load maintenance history')
@@ -58,7 +58,7 @@ function MaintenanceHistory() {
     setEditingLogId(log.id)
     setEditFormData({
       date_performed: log.date_performed,
-      mileage: log.mileage || '',
+      usage_reading: log.usage_reading || '',
       cost: log.cost || '',
       notes: log.notes || '',
       receipt_photo: null,
@@ -70,7 +70,7 @@ function MaintenanceHistory() {
     setEditingLogId(null)
     setEditFormData({
       date_performed: '',
-      mileage: '',
+      usage_reading: '',
       cost: '',
       notes: '',
       receipt_photo: null,
@@ -114,7 +114,6 @@ function MaintenanceHistory() {
 
     try {
       await maintenanceLogAPI.deleteAttachment(attachmentId)
-      // Reload data to refresh the attachments
       loadData()
     } catch (err) {
       setError('Failed to delete attachment')
@@ -124,14 +123,12 @@ function MaintenanceHistory() {
 
   const handleSaveEdit = async (logId) => {
     try {
-      // Only use FormData if there's a file to upload, otherwise use JSON
       let submitData
       if (editFormData.receipt_photo || newAttachments.length > 0) {
-        // Has file - use FormData
         submitData = new FormData()
         submitData.append('date_performed', editFormData.date_performed)
-        if (editFormData.mileage) {
-          submitData.append('mileage', editFormData.mileage)
+        if (editFormData.usage_reading) {
+          submitData.append('usage_reading', editFormData.usage_reading)
         }
         if (editFormData.cost) {
           submitData.append('cost', editFormData.cost)
@@ -142,15 +139,13 @@ function MaintenanceHistory() {
         if (editFormData.receipt_photo) {
           submitData.append('receipt_photo', editFormData.receipt_photo)
         }
-        // Add new attachments
         newAttachments.forEach(file => {
           submitData.append('attachments', file)
         })
       } else {
-        // No file - use JSON
         submitData = {
           date_performed: editFormData.date_performed,
-          mileage: editFormData.mileage || null,
+          usage_reading: editFormData.usage_reading || null,
           cost: editFormData.cost || null,
           notes: editFormData.notes || null,
           remove_receipt: editFormData.remove_receipt
@@ -159,12 +154,11 @@ function MaintenanceHistory() {
 
       const response = await maintenanceLogAPI.update(logId, submitData)
 
-      // Update the log in the list
       setLogs(logs.map(log => log.id === logId ? response.data : log))
       setEditingLogId(null)
       setEditFormData({
         date_performed: '',
-        mileage: '',
+        usage_reading: '',
         cost: '',
         notes: '',
         receipt_photo: null,
@@ -192,7 +186,7 @@ function MaintenanceHistory() {
   }
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
+    const date = parseLocalDate(dateString)
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -204,12 +198,12 @@ function MaintenanceHistory() {
     return <div className="loading">Loading history...</div>
   }
 
-  if (error || !vehicle || !maintenanceItem) {
+  if (error || !asset || !maintenanceItem) {
     return (
       <div className="maintenance-history-page">
         <div className="error-alert">{error || 'Data not found'}</div>
-        <Button onClick={() => navigate(`/vehicle/${vehicleId}`)}>
-          Back to Vehicle
+        <Button onClick={() => navigate(`/asset/${assetId}`)}>
+          Back to Asset
         </Button>
       </div>
     )
@@ -221,7 +215,7 @@ function MaintenanceHistory() {
         <div>
           <h2>{maintenanceItem.name} History</h2>
           <p className="vehicle-name">
-            {vehicle.year} {vehicle.make} {vehicle.model}
+            {asset.name}
           </p>
           <p className="frequency-info">
             Frequency: Every {maintenanceItem.frequency_value} {maintenanceItem.frequency_unit}
@@ -230,16 +224,16 @@ function MaintenanceHistory() {
         <div className="header-actions">
           <Button
             onClick={() => navigate('/maintenance-log', {
-              state: { vehicleId: vehicle.id, itemId: maintenanceItem.id }
+              state: { assetId: asset.id, itemId: maintenanceItem.id }
             })}
           >
             + Log New
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate(`/vehicle/${vehicleId}`)}
+            onClick={() => navigate(`/asset/${assetId}`)}
           >
-            Back to Vehicle
+            Back to Asset
           </Button>
         </div>
       </div>
@@ -250,7 +244,7 @@ function MaintenanceHistory() {
           <p>This maintenance item has never been performed.</p>
           <Button
             onClick={() => navigate('/maintenance-log', {
-              state: { vehicleId: vehicle.id, itemId: maintenanceItem.id }
+              state: { assetId: asset.id, itemId: maintenanceItem.id }
             })}
           >
             Log First Maintenance
@@ -265,7 +259,6 @@ function MaintenanceHistory() {
           {logs.map((log) => (
             <div key={log.id} className="log-card">
               {editingLogId === log.id ? (
-                // Edit mode
                 <div className="log-edit-form">
                   <div className="form-group">
                     <label>Date Performed</label>
@@ -278,16 +271,18 @@ function MaintenanceHistory() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Mileage (optional)</label>
-                    <input
-                      type="number"
-                      name="mileage"
-                      value={editFormData.mileage}
-                      onChange={handleEditFormChange}
-                      placeholder="e.g., 50000"
-                    />
-                  </div>
+                  {asset.usage_metric && (
+                    <div className="form-group">
+                      <label>{asset.usage_metric} (optional)</label>
+                      <input
+                        type="number"
+                        name="usage_reading"
+                        value={editFormData.usage_reading}
+                        onChange={handleEditFormChange}
+                        placeholder={`e.g., 50000`}
+                      />
+                    </div>
+                  )}
 
                   <div className="form-group">
                     <label>Cost (optional)</label>
@@ -357,17 +352,16 @@ function MaintenanceHistory() {
                   </div>
                 </div>
               ) : (
-                // View mode
                 <>
                   <div className="log-header">
                     <div className="log-date">
                       <span className="date-label">Date:</span>
                       <span className="date-value">{formatDate(log.date_performed)}</span>
                     </div>
-                    {log.mileage && (
+                    {log.usage_reading && asset.usage_metric && (
                       <div className="log-mileage">
-                        <span className="mileage-value">{log.mileage.toLocaleString()}</span>
-                        <span className="mileage-unit">miles</span>
+                        <span className="mileage-value">{log.usage_reading.toLocaleString()}</span>
+                        <span className="mileage-unit">{asset.usage_metric}</span>
                       </div>
                     )}
                     {log.cost && (
@@ -395,21 +389,21 @@ function MaintenanceHistory() {
                       <div className="receipt-preview">
                         {log.receipt_photo.toLowerCase().endsWith('.pdf') ? (
                           <a
-                            href={`http://localhost:5001/uploads/${log.receipt_photo}`}
+                            href={`/uploads/${log.receipt_photo}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="receipt-link"
                           >
-                            📄 View PDF Receipt
+                            View PDF Receipt
                           </a>
                         ) : (
                           <a
-                            href={`http://localhost:5001/uploads/${log.receipt_photo}`}
+                            href={`/uploads/${log.receipt_photo}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
                             <img
-                              src={`http://localhost:5001/uploads/${log.receipt_photo}`}
+                              src={`/uploads/${log.receipt_photo}`}
                               alt="Receipt"
                               className="receipt-image"
                             />

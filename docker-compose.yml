@@ -8,7 +8,7 @@ services:
       - backend-uploads:/app/uploads
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=sqlite:///car_maintenance.db
+      - DATABASE_URL=sqlite:///upkeep.db
     networks:
       - app-network
 

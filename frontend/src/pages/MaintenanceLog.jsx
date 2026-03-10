@@ -5,18 +5,17 @@ import Select from '../components/Select'
 import TextArea from '../components/TextArea'
 import Button from '../components/Button'
 import FileUpload from '../components/FileUpload'
-import { vehicleAPI, maintenanceItemAPI, maintenanceLogAPI } from '../services/api'
+import { assetAPI, maintenanceItemAPI, maintenanceLogAPI } from '../services/api'
 import './MaintenanceLog.css'
 
 function MaintenanceLog() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Get pre-selected vehicle/item from navigation state
-  const preSelectedVehicleId = location.state?.vehicleId
+  const preSelectedAssetId = location.state?.assetId
   const preSelectedItemId = location.state?.itemId
 
-  const [vehicles, setVehicles] = useState([])
+  const [assets, setAssets] = useState([])
   const [maintenanceItems, setMaintenanceItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -24,10 +23,10 @@ function MaintenanceLog() {
   const [success, setSuccess] = useState(false)
 
   const [formData, setFormData] = useState({
-    vehicle_id: preSelectedVehicleId || '',
+    asset_id: preSelectedAssetId || '',
     maintenance_item_id: preSelectedItemId || '',
-    date_performed: new Date().toISOString().split('T')[0], // Today's date
-    mileage: '',
+    date_performed: new Date().toISOString().split('T')[0],
+    usage_reading: '',
     cost: '',
     notes: ''
   })
@@ -35,42 +34,41 @@ function MaintenanceLog() {
   const [attachments, setAttachments] = useState([])
 
   useEffect(() => {
-    loadVehicles()
+    loadAssets()
   }, [])
 
   useEffect(() => {
-    if (formData.vehicle_id) {
-      loadMaintenanceItems(formData.vehicle_id)
+    if (formData.asset_id) {
+      loadMaintenanceItems(formData.asset_id)
     }
-  }, [formData.vehicle_id])
+  }, [formData.asset_id])
 
-  const loadVehicles = async () => {
+  const loadAssets = async () => {
     try {
       setLoading(true)
-      const response = await vehicleAPI.getAll()
-      setVehicles(response.data)
+      const response = await assetAPI.getAll()
+      setAssets(response.data)
 
-      // If we have a pre-selected vehicle, load its current mileage
-      if (preSelectedVehicleId) {
-        const vehicle = response.data.find(v => v.id === preSelectedVehicleId)
-        if (vehicle) {
+      if (preSelectedAssetId) {
+        const asset = response.data.find(a => a.id === preSelectedAssetId)
+        if (asset && asset.usage_metric) {
           setFormData(prev => ({
             ...prev,
-            mileage: vehicle.current_mileage.toString()
+            usage_reading: asset.current_usage.toString()
           }))
         }
       }
     } catch (err) {
-      setError('Failed to load vehicles')
-      console.error('Error loading vehicles:', err)
+      setError('Failed to load assets')
+      console.error('Error loading assets:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const loadMaintenanceItems = async (vehicleId) => {
+  const loadMaintenanceItems = async (assetId) => {
     try {
-      const response = await maintenanceItemAPI.getAll(vehicleId)
+      const response = await maintenanceItemAPI.getAll(assetId)
       setMaintenanceItems(response.data)
     } catch (err) {
       setError('Failed to load maintenance items')
@@ -85,19 +83,22 @@ function MaintenanceLog() {
       [name]: value
     }))
 
-    // When vehicle changes, reset maintenance item and load new items
-    if (name === 'vehicle_id') {
+    if (name === 'asset_id') {
       setFormData(prev => ({
         ...prev,
         maintenance_item_id: ''
       }))
 
-      // Update mileage to match selected vehicle
-      const vehicle = vehicles.find(v => v.id === parseInt(value))
-      if (vehicle) {
+      const asset = assets.find(a => a.id === parseInt(value))
+      if (asset && asset.usage_metric) {
         setFormData(prev => ({
           ...prev,
-          mileage: vehicle.current_mileage.toString()
+          usage_reading: asset.current_usage.toString()
+        }))
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          usage_reading: ''
         }))
       }
     }
@@ -113,18 +114,18 @@ function MaintenanceLog() {
     setError(null)
 
     try {
-      // Create FormData for file upload
       const submitData = new FormData()
       submitData.append('maintenance_item_id', formData.maintenance_item_id)
       submitData.append('date_performed', formData.date_performed)
-      submitData.append('mileage', formData.mileage)
+      if (formData.usage_reading) {
+        submitData.append('usage_reading', formData.usage_reading)
+      }
       if (formData.cost) {
         submitData.append('cost', formData.cost)
       }
       if (formData.notes) {
         submitData.append('notes', formData.notes)
       }
-      // Add multiple attachments
       attachments.forEach(file => {
         submitData.append('attachments', file)
       })
@@ -133,9 +134,8 @@ function MaintenanceLog() {
 
       setSuccess(true)
 
-      // Redirect back to vehicle detail page after a brief delay
       setTimeout(() => {
-        navigate(`/vehicle/${formData.vehicle_id}`)
+        navigate(`/asset/${formData.asset_id}`)
       }, 1500)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to log maintenance')
@@ -144,7 +144,7 @@ function MaintenanceLog() {
     }
   }
 
-  const selectedVehicle = vehicles.find(v => v.id === parseInt(formData.vehicle_id))
+  const selectedAsset = assets.find(a => a.id === parseInt(formData.asset_id))
 
   if (loading) {
     return <div className="loading">Loading...</div>
@@ -154,8 +154,8 @@ function MaintenanceLog() {
     return (
       <div className="maintenance-log-page">
         <div className="success-message">
-          <h2>✓ Maintenance Logged Successfully!</h2>
-          <p>Redirecting back to vehicle details...</p>
+          <h2>Maintenance Logged Successfully!</h2>
+          <p>Redirecting back to asset details...</p>
         </div>
       </div>
     )
@@ -178,24 +178,24 @@ function MaintenanceLog() {
 
       <form onSubmit={handleSubmit} className="maintenance-log-form">
         <div className="form-section">
-          <h3>Select Vehicle & Maintenance Item</h3>
+          <h3>Select Asset & Maintenance Item</h3>
 
           <Select
-            label="Vehicle"
-            name="vehicle_id"
-            value={formData.vehicle_id}
+            label="Asset"
+            name="asset_id"
+            value={formData.asset_id}
             onChange={handleChange}
             options={[
-              { value: '', label: 'Select a vehicle...' },
-              ...vehicles.map(v => ({
-                value: v.id.toString(),
-                label: `${v.year} ${v.make} ${v.model}`
+              { value: '', label: 'Select an asset...' },
+              ...assets.map(a => ({
+                value: a.id.toString(),
+                label: a.name
               }))
             ]}
             required
           />
 
-          {formData.vehicle_id && (
+          {formData.asset_id && (
             <Select
               label="Maintenance Item"
               name="maintenance_item_id"
@@ -229,21 +229,22 @@ function MaintenanceLog() {
                   required
                 />
 
-                <Input
-                  label="Current Mileage"
-                  name="mileage"
-                  type="number"
-                  value={formData.mileage}
-                  onChange={handleChange}
-                  placeholder="e.g., 25000"
-                  min="0"
-                  required
-                />
+                {selectedAsset?.usage_metric && (
+                  <Input
+                    label={`Current ${selectedAsset.usage_metric}`}
+                    name="usage_reading"
+                    type="number"
+                    value={formData.usage_reading}
+                    onChange={handleChange}
+                    placeholder={`e.g., 25000`}
+                    min="0"
+                  />
+                )}
               </div>
 
-              {selectedVehicle && (
+              {selectedAsset?.usage_metric && (
                 <p className="mileage-hint">
-                  Vehicle's last recorded mileage: {selectedVehicle.current_mileage.toLocaleString()} miles
+                  Last recorded {selectedAsset.usage_metric}: {selectedAsset.current_usage.toLocaleString()}
                 </p>
               )}
 
@@ -263,7 +264,7 @@ function MaintenanceLog() {
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                placeholder="e.g., Parts used, shop visited, any issues noticed..."
+                placeholder="e.g., Parts used, any issues noticed..."
                 rows={4}
               />
             </div>

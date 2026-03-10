@@ -22,14 +22,12 @@ function Settings() {
 
       const response = await backupAPI.export()
 
-      // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
 
-      // Extract filename from response headers or use default
       const contentDisposition = response.headers['content-disposition']
-      let filename = 'car_maintenance_backup.json'
+      let filename = 'upkeep_backup.json'
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?(.+)"?/)
         if (filenameMatch) {
@@ -65,13 +63,12 @@ function Settings() {
       return
     }
 
-    // Confirm with user
     const confirmMessage = importMode === 'replace'
       ? 'This will DELETE ALL existing data and replace it with the backup. Are you sure?'
       : 'This will merge the backup data with your existing data. Continue?'
 
     if (!window.confirm(confirmMessage)) {
-      e.target.value = '' // Reset file input
+      e.target.value = ''
       return
     }
 
@@ -83,14 +80,13 @@ function Settings() {
       const response = await backupAPI.import(file, importMode)
 
       setMessage(
-        `Import successful! Imported: ${response.data.counts.vehicles} vehicles, ` +
+        `Import successful! Imported: ${response.data.counts.assets} assets, ` +
         `${response.data.counts.maintenance_items} items, ` +
         `${response.data.counts.maintenance_logs} logs, ` +
         `${response.data.counts.general_maintenance} general maintenance records. ` +
         response.data.note
       )
 
-      // Clear file input
       e.target.value = ''
     } catch (err) {
       setError('Failed to import data: ' + (err.response?.data?.error || err.message))
@@ -129,9 +125,8 @@ function Settings() {
 
         <div className="backup-actions">
           <div className="backup-card">
-            <div className="backup-card-icon">📥</div>
             <h4>Export Data</h4>
-            <p>Download all your vehicles, maintenance items, and logs as a JSON file.</p>
+            <p>Download all your assets, maintenance items, and logs as a JSON file.</p>
             <Button
               onClick={handleExport}
               disabled={exporting}
@@ -142,7 +137,6 @@ function Settings() {
           </div>
 
           <div className="backup-card">
-            <div className="backup-card-icon">📤</div>
             <h4>Import Data</h4>
             <p>Restore data from a previous backup file.</p>
 
@@ -165,7 +159,7 @@ function Settings() {
                   checked={importMode === 'replace'}
                   onChange={(e) => setImportMode(e.target.value)}
                 />
-                <span>Replace all data (⚠️ deletes existing)</span>
+                <span>Replace all data (deletes existing)</span>
               </label>
             </div>
 

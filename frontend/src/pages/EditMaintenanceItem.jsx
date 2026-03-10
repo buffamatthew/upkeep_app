@@ -4,36 +4,36 @@ import Input from '../components/Input'
 import Select from '../components/Select'
 import TextArea from '../components/TextArea'
 import Button from '../components/Button'
-import { maintenanceItemAPI, vehicleAPI } from '../services/api'
+import { maintenanceItemAPI, assetAPI } from '../services/api'
 import './EditMaintenanceItem.css'
 
 function EditMaintenanceItem() {
-  const { vehicleId, itemId } = useParams()
+  const { assetId, itemId } = useParams()
   const navigate = useNavigate()
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-  const [vehicle, setVehicle] = useState(null)
+  const [asset, setAsset] = useState(null)
 
   const [formData, setFormData] = useState({
     name: '',
-    maintenance_type: 'mileage',
+    maintenance_type: 'time',
     frequency_value: '',
-    frequency_unit: 'miles',
+    frequency_unit: 'months',
     notes: ''
   })
 
   useEffect(() => {
     loadData()
-  }, [itemId, vehicleId])
+  }, [itemId, assetId])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const [itemRes, vehicleRes] = await Promise.all([
+      const [itemRes, assetRes] = await Promise.all([
         maintenanceItemAPI.getById(itemId),
-        vehicleAPI.getById(vehicleId)
+        assetAPI.getById(assetId)
       ])
 
       const item = itemRes.data
@@ -44,7 +44,7 @@ function EditMaintenanceItem() {
         frequency_unit: item.frequency_unit,
         notes: item.notes || ''
       })
-      setVehicle(vehicleRes.data)
+      setAsset(assetRes.data)
     } catch (err) {
       setError('Failed to load maintenance item')
       console.error('Error loading item:', err)
@@ -60,11 +60,10 @@ function EditMaintenanceItem() {
       [name]: value
     }))
 
-    // Update frequency_unit when type changes
     if (name === 'maintenance_type') {
       setFormData(prev => ({
         ...prev,
-        frequency_unit: value === 'mileage' ? 'miles' : 'days'
+        frequency_unit: value === 'usage' ? (asset?.usage_metric || 'units') : 'months'
       }))
     }
   }
@@ -83,7 +82,7 @@ function EditMaintenanceItem() {
         notes: formData.notes || null
       })
 
-      navigate(`/vehicle/${vehicleId}`)
+      navigate(`/asset/${assetId}`)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update maintenance item')
       console.error('Error updating item:', err)
@@ -99,9 +98,16 @@ function EditMaintenanceItem() {
     return (
       <div className="edit-maintenance-item-page">
         <div className="error-alert">{error}</div>
-        <Button onClick={() => navigate(`/vehicle/${vehicleId}`)}>Back to Vehicle</Button>
+        <Button onClick={() => navigate(`/asset/${assetId}`)}>Back to Asset</Button>
       </div>
     )
+  }
+
+  const typeOptions = [
+    { value: 'time', label: 'Time-based' }
+  ]
+  if (asset?.usage_metric) {
+    typeOptions.push({ value: 'usage', label: `Usage-based (${asset.usage_metric})` })
   }
 
   return (
@@ -109,13 +115,13 @@ function EditMaintenanceItem() {
       <div className="page-header">
         <div>
           <h2>Edit Maintenance Item</h2>
-          {vehicle && (
+          {asset && (
             <p className="vehicle-name">
-              {vehicle.year} {vehicle.make} {vehicle.model}
+              {asset.name}
             </p>
           )}
         </div>
-        <Button variant="outline" onClick={() => navigate(`/vehicle/${vehicleId}`)}>
+        <Button variant="outline" onClick={() => navigate(`/asset/${assetId}`)}>
           Cancel
         </Button>
       </div>
@@ -135,7 +141,7 @@ function EditMaintenanceItem() {
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder="e.g., Oil Change"
+            placeholder="e.g., Oil Change, Filter Replacement"
             required
           />
 
@@ -144,10 +150,7 @@ function EditMaintenanceItem() {
             name="maintenance_type"
             value={formData.maintenance_type}
             onChange={handleChange}
-            options={[
-              { value: 'mileage', label: 'Mileage-based' },
-              { value: 'time', label: 'Time-based' }
-            ]}
+            options={typeOptions}
             required
           />
 
@@ -158,7 +161,7 @@ function EditMaintenanceItem() {
               type="number"
               value={formData.frequency_value}
               onChange={handleChange}
-              placeholder="e.g., 5000"
+              placeholder="e.g., 3"
               min="1"
               required
             />
@@ -168,10 +171,11 @@ function EditMaintenanceItem() {
               name="frequency_unit"
               value={formData.frequency_unit}
               onChange={handleChange}
-              options={formData.maintenance_type === 'mileage' ? [
-                { value: 'miles', label: 'Miles' }
+              options={formData.maintenance_type === 'usage' ? [
+                { value: asset?.usage_metric || 'units', label: asset?.usage_metric || 'Units' }
               ] : [
                 { value: 'days', label: 'Days' },
+                { value: 'weeks', label: 'Weeks' },
                 { value: 'months', label: 'Months' },
                 { value: 'years', label: 'Years' }
               ]}
@@ -184,7 +188,7 @@ function EditMaintenanceItem() {
             name="notes"
             value={formData.notes}
             onChange={handleChange}
-            placeholder="e.g., Full synthetic only, specific filter required..."
+            placeholder="e.g., Use specific brand, special instructions..."
             rows={4}
           />
         </div>

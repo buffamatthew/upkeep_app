@@ -2,7 +2,7 @@
 
 ## Overview
 
-There are two ways to test the Car Maintenance Tracker backend:
+There are two ways to test the Upkeep backend:
 
 1. **Automated Unit Tests** - Using pytest
 2. **Manual API Testing** - Using the test script

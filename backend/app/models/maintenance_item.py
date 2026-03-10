@@ -5,11 +5,11 @@ class MaintenanceItem(db.Model):
     __tablename__ = 'maintenance_items'
 
     id = db.Column(db.Integer, primary_key=True)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.id'), nullable=False)
+    asset_id = db.Column(db.Integer, db.ForeignKey('assets.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    maintenance_type = db.Column(db.String(20), nullable=False)  # 'mileage' or 'time'
-    frequency_value = db.Column(db.Integer, nullable=False)  # miles or days
-    frequency_unit = db.Column(db.String(20), nullable=False)  # 'miles', 'days', 'months', 'years'
+    maintenance_type = db.Column(db.String(20), nullable=False, default='time')  # 'time' or 'usage'
+    frequency_value = db.Column(db.Integer, nullable=False)
+    frequency_unit = db.Column(db.String(20), nullable=False)  # 'days', 'weeks', 'months', 'years' for time; asset's usage_metric for usage
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -20,7 +20,7 @@ class MaintenanceItem(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'vehicle_id': self.vehicle_id,
+            'asset_id': self.asset_id,
             'name': self.name,
             'maintenance_type': self.maintenance_type,
             'frequency_value': self.frequency_value,
@@ -31,4 +31,4 @@ class MaintenanceItem(db.Model):
         }
 
     def __repr__(self):
-        return f'<MaintenanceItem {self.name} for Vehicle {self.vehicle_id}>'
+        return f'<MaintenanceItem {self.name} for Asset {self.asset_id}>'

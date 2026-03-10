@@ -9,7 +9,7 @@ class Config:
     # Use /app/instance for persistent data (database)
     INSTANCE_FOLDER = os.environ.get('INSTANCE_FOLDER') or os.path.join(basedir, 'instance')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(INSTANCE_FOLDER, 'car_maintenance.db')
+        'sqlite:///' + os.path.join(INSTANCE_FOLDER, 'upkeep.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max request size

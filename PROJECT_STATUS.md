@@ -1,4 +1,4 @@
-# Car Maintenance Tracker - Project Status
+# Upkeep - Project Status
 
 **Last Updated:** 2025-11-28 (Phase 7 Complete)
 
