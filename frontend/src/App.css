@@ -5,14 +5,22 @@
 
 .App-header {
   background-color: #282c34;
-  padding: 1rem 2rem;
+  padding-top: env(safe-area-inset-top);
+  padding-left: max(2rem, env(safe-area-inset-left));
+  padding-right: max(2rem, env(safe-area-inset-right));
+  padding-bottom: 0;
   color: white;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .App-header h1 {
   margin: 0;
   font-size: 1.5rem;
+  padding: 1rem 0;
 }
 
 main {
