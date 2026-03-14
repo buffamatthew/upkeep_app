@@ -217,7 +217,7 @@ function Dashboard() {
       ) : (
         <div className="vehicles-grid">
           {assets.map((asset) => (
-            <div key={asset.id} className="vehicle-card">
+            <div key={asset.id} className="vehicle-card" onClick={() => navigate(`/asset/${asset.id}`)} style={{ cursor: 'pointer' }}>
               <div className="vehicle-header">
                 <div className="vehicle-title">
                   <h3>{asset.name}</h3>
@@ -278,11 +278,6 @@ function Dashboard() {
                 </div>
               )}
 
-              <div className="vehicle-actions">
-                <Button variant="outline" onClick={() => navigate(`/asset/${asset.id}`)}>
-                  View Details
-                </Button>
-              </div>
             </div>
           ))}
         </div>
